@@ -99,7 +99,7 @@ class TenantContext:
             key: Metadata key
             value: Metadata value
         """
-        metadata = _tenant_metadata.get().copy()
+        metadata = _tenant_metadata.get({}).copy()
         metadata[key] = value
         _tenant_metadata.set(metadata)
 
