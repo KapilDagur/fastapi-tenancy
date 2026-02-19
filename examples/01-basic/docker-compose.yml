@@ -1,0 +1,45 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# BASIC EXAMPLE — Notekeeper SaaS
+# Header-based tenant resolution · RLS isolation · PostgreSQL
+#
+# Usage:
+#   docker compose up --build
+#   curl -H "X-Tenant-ID: acme-corp" http://localhost:8000/notes
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notekeeper
+      POSTGRES_USER: notekeeper
+      POSTGRES_PASSWORD: notekeeper_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notekeeper -d notekeeper"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      TENANCY_DATABASE_URL: postgresql+asyncpg://notekeeper:notekeeper_secret@db:5432/notekeeper
+      TENANCY_RESOLUTION_STRATEGY: header
+      TENANCY_ISOLATION_STRATEGY: rls
+      TENANCY_TENANT_HEADER_NAME: X-Tenant-ID
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  db_data:

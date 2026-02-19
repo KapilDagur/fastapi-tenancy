@@ -1,0 +1,92 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ADVANCED EXAMPLE — Projectr SaaS
+# JWT resolution · Hybrid isolation (schema for enterprise, RLS for starter)
+# Redis cache · Background workers · Alembic migrations · Full observability
+#
+# Tenant tiers
+#   enterprise (premium) → dedicated PostgreSQL schema
+#   starter    (standard) → shared schema with RLS
+#
+# Usage:
+#   docker compose up --build
+#   # Get a JWT:
+#   TOKEN=$(curl -s -X POST http://localhost:8000/auth/token \
+#     -d '{"tenant_id":"acme-corp","secret":"demo"}' | jq -r .access_token)
+#   curl -H "Authorization: Bearer $TOKEN" http://localhost:8000/projects
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: projectr
+      POSTGRES_USER: projectr
+      POSTGRES_PASSWORD: projectr_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U projectr -d projectr"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL:               postgresql+asyncpg://projectr:projectr_secret@db:5432/projectr
+      REDIS_URL:                  redis://redis:6379/0
+      JWT_SECRET:                 "super-secret-key-min-32-chars-long!!"
+      JWT_ALGORITHM:              HS256
+      JWT_TENANT_CLAIM:           tenant_id
+      # Enterprise tenants get dedicated schemas
+      PREMIUM_TENANTS:            "tenant-acme-001,tenant-techcorp-001"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Background worker: processes async jobs (e.g. send email on project created)
+  worker:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://projectr:projectr_secret@db:5432/projectr
+      REDIS_URL:    redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python -m app.workers.main
+
+  # One-off migration runner
+  migrate:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://projectr:projectr_secret@db:5432/projectr
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python -m app.workers.migrate
+    restart: "no"
+
+volumes:
+  db_data:

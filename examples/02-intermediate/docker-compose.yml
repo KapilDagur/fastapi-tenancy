@@ -1,0 +1,75 @@
+version: "3.9"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# INTERMEDIATE EXAMPLE — Invoicer SaaS
+# Subdomain resolution · Schema isolation · Alembic migrations · Redis cache
+#
+# Usage:
+#   docker compose up --build
+#   # Add to /etc/hosts: 127.0.0.1 acme.localhost globex.localhost
+#   curl http://acme.localhost:8000/invoices
+#
+# Or use the header shortcut for testing:
+#   docker compose --profile test up seed
+#   curl -H "Host: acme.localhost" http://localhost:8000/invoices
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: invoicer
+      POSTGRES_USER: invoicer
+      POSTGRES_PASSWORD: invoicer_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U invoicer -d invoicer"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      TENANCY_DATABASE_URL: postgresql+asyncpg://invoicer:invoicer_secret@db:5432/invoicer
+      TENANCY_RESOLUTION_STRATEGY: subdomain
+      TENANCY_ISOLATION_STRATEGY: schema
+      TENANCY_DOMAIN_SUFFIX: .localhost
+      TENANCY_REDIS_URL: redis://redis:6379/0
+      TENANCY_SCHEMA_PREFIX: "tenant_"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Run Alembic migrations once before the API starts
+  migrate:
+    build: .
+    environment:
+      DATABASE_URL: postgresql+asyncpg://invoicer:invoicer_secret@db:5432/invoicer
+    depends_on:
+      db:
+        condition: service_healthy
+    command: python -m app.migrate
+    restart: "no"
+
+volumes:
+  db_data:

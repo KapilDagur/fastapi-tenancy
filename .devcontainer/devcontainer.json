@@ -1,0 +1,67 @@
+{
+  "name": "fastapi-tenancy",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12-bullseye",
+
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+
+  "runArgs": ["--init"],
+
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspaces/fastapi-tenancy,type=bind,consistency=cached"
+  ],
+
+  "workspaceFolder": "/workspaces/fastapi-tenancy",
+
+  "onCreateCommand": "pip install --upgrade pip uv",
+
+  "postCreateCommand": "uv pip install --system -e '.[dev,sqlite,postgres,redis,migrations]'",
+
+  "postStartCommand": "docker compose up -d",
+
+  "forwardPorts": [5432, 6379, 8000],
+
+  "portsAttributes": {
+    "5432": { "label": "PostgreSQL", "onAutoForward": "silent" },
+    "6379": { "label": "Redis",      "onAutoForward": "silent" },
+    "8000": { "label": "App",        "onAutoForward": "notify" }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.mypy-type-checker",
+        "charliermarsh.ruff",
+        "ms-python.debugpy",
+        "tamasfe.even-better-toml",
+        "redhat.vscode-yaml",
+        "eamodio.gitlens",
+        "usernamehw.errorlens"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/usr/local/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.pytestArgs": ["-v", "--tb=short"],
+        "python.testing.unittestEnabled": false,
+        "[python]": {
+          "editor.formatOnSave": true,
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.codeActionsOnSave": {
+            "source.fixAll.ruff": "explicit",
+            "source.organizeImports.ruff": "explicit"
+          }
+        },
+        "mypy-type-checker.args": ["--ignore-missing-imports"],
+        "ruff.lint.args": ["--select=E,W,F,I,B,C4,UP,SIM,RUF"],
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true
+      }
+    }
+  },
+
+  "remoteUser": "vscode"
+}

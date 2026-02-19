@@ -1,0 +1,204 @@
+###################################################################################
+# MkDocs configuration — fastapi-tenancy
+#
+# Theme  : Material for MkDocs  https://squidfunk.github.io/mkdocs-material/
+# API ref: mkdocstrings[python]  https://mkdocstrings.github.io/python/
+#
+# Install:
+#   pip install mkdocs mkdocs-material "mkdocstrings[python]"
+#
+# Local preview:
+#   mkdocs serve
+#
+# Build static site:
+#   mkdocs build --strict
+###################################################################################
+
+site_name: fastapi-tenancy
+site_description: >-
+  Enterprise-grade multi-tenancy for FastAPI — schema, database, RLS, and
+  hybrid isolation strategies. Async-first. Pydantic v2. SQL-injection-safe.
+site_author: fastapi-tenancy contributors
+site_url: https://fastapi-tenancy.readthedocs.io
+repo_url: https://github.com/KapilDagur/fastapi-tenancy
+repo_name: KapilDagur/fastapi-tenancy
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2024 fastapi-tenancy contributors — MIT License
+
+docs_dir: docs
+site_dir: site
+
+# Theme 
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: deep-purple
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: deep-purple
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  font:
+    text: Inter
+    code: JetBrains Mono
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+    logo: material/database-lock
+  favicon: assets/favicon.ico
+
+# Navigation
+nav:
+  - Home: index.md
+  - Getting Started:
+    - getting-started/index.md
+    - Installation: getting-started/installation.md
+    - Quickstart: getting-started/quickstart.md
+    - Configuration Reference: getting-started/configuration.md
+  - Guides:
+    - guides/index.md
+    - Isolation Strategies: guides/isolation.md
+    - Resolution Strategies: guides/resolution.md
+    - Middleware & Lifespan: guides/middleware.md
+    - FastAPI Dependencies: guides/dependencies.md
+    - Testing: guides/testing.md
+    - Migrations: guides/migrations.md
+    - Production Deployment: guides/production.md
+  - API Reference:
+    - api/index.md
+    - TenancyConfig: api/config.md
+    - TenancyManager: api/manager.md
+    - TenancyMiddleware: api/middleware.md
+    - TenantContext: api/context.md
+    - Storage: api/storage.md
+    - Isolation Providers: api/isolation.md
+    - Resolvers: api/resolution.md
+    - Exceptions: api/exceptions.md
+    - Types & Protocols: api/types.md
+  - Examples:
+    - examples/index.md
+    - Basic (Header + Schema): examples/basic.md
+    - Intermediate (SaaS Invoicing): examples/intermediate.md
+    - Advanced (Hybrid + Workers): examples/advanced.md
+  - Changelog: changelog.md
+  - Contributing: contributing.md
+
+# Markdown extensions
+markdown_extensions:
+  - admonition
+  - footnotes
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      title: On this page
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      check_paths: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.critic
+
+# Plugins
+plugins:
+  - search:
+      separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            # Docstring rendering
+            docstring_style: google
+            docstring_section_style: spacy
+            show_docstring_description: true
+            show_docstring_examples: true
+            show_docstring_raises: true
+            show_docstring_returns: true
+            show_docstring_yields: true
+            show_docstring_attributes: true
+            show_docstring_parameters: true
+
+            # Display options
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_root_toc_entry: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+
+            # Members
+            members_order: source
+            filters: ["!^_[^_]"]   # hide private, keep dunder
+            inherited_members: false
+
+            # Signatures
+            show_signature: true
+            show_signature_annotations: true
+            separate_signature: true
+            signature_crossrefs: true
+            unwrap_annotated: true
+
+            # Class options
+            merge_init_into_class: true
+            show_if_no_docstring: false
+
+            # Type annotations
+            show_bases: true
+            modernize_annotations: true
+
+# Extra
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/KapilDagur/fastapi-tenancy
+      name: GitHub
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/fastapi-tenancy/
+      name: PyPI
+  version:
+    provider: mike
+    default: stable
+  analytics:
+    provider: google
+    property: !ENV [GA_PROPERTY, ""]
