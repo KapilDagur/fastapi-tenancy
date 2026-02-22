@@ -227,7 +227,7 @@ class TenantStore(ABC, Generic[TenantT]):
             TenantNotFoundError: When *tenant_id* does not exist.
         """
 
-    async def get_by_ids(self, tenant_ids: Iterable[str]) -> list[TenantT]:
+    async def get_by_ids(self, tenant_ids: Iterable[str]) -> Sequence[TenantT]:
         """Fetch multiple tenants by their IDs in one logical call.
 
         The base implementation issues one ``get_by_id`` call per ID.
@@ -253,7 +253,7 @@ class TenantStore(ABC, Generic[TenantT]):
         query: str,
         limit: int = 10,
         _scan_limit: int = 100,
-    ) -> list[TenantT]:
+    ) -> Sequence[TenantT]:
         """Search for tenants whose name or identifier contains *query*.
 
         The base implementation loads up to *_scan_limit* records and filters
@@ -275,7 +275,7 @@ class TenantStore(ABC, Generic[TenantT]):
         """
         query_lower = query.lower()
         candidates = await self.list(skip=0, limit=_scan_limit)
-        matches: list[TenantT] = [
+        matches: Sequence[TenantT] = [
             t
             for t in candidates
             if query_lower in t.identifier.lower() or query_lower in t.name.lower()
@@ -286,7 +286,7 @@ class TenantStore(ABC, Generic[TenantT]):
         self,
         tenant_ids: Iterable[str],
         status: TenantStatus,
-    ) -> list[TenantT]:
+    ) -> Sequence[TenantT]:
         """Update the status of multiple tenants in one logical operation.
 
         The base implementation calls ``set_status`` once per ID.
