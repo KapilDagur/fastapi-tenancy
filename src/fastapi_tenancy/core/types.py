@@ -282,9 +282,7 @@ class TenantConfig(BaseModel):
     max_storage_gb: int | None = Field(
         default=None, ge=0, description="Max storage in GB (None = unlimited)."
     )
-    features_enabled: list[str] = Field(
-        default_factory=list, description="Active feature flags."
-    )
+    features_enabled: list[str] = Field(default_factory=list, description="Active feature flags.")
     rate_limit_per_minute: int = Field(
         default=100, ge=1, le=10_000, description="API rate limit per minute."
     )
@@ -427,7 +425,7 @@ class IsolationProvider(Protocol):
         ...
 
 
-__all__ = [ # noqa
+__all__ = [  # noqa
     # Type variables
     "SelectT",
     "TenantT",

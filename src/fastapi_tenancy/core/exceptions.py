@@ -231,8 +231,7 @@ class RateLimitExceededError(TenancyError):
         details: dict[str, Any] | None = None,
     ) -> None:
         super().__init__(
-            f"Rate limit exceeded for tenant {tenant_id!r}: "
-            f"{limit} requests per {window_seconds}s",
+            f"Rate limit exceeded for tenant {tenant_id!r}: {limit} requests per {window_seconds}s",
             details,
         )
         self.tenant_id = tenant_id

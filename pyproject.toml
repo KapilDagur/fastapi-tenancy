@@ -12,7 +12,7 @@ readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
 authors = [{ name = "fastapi-tenancy contributors" }]
-keywords = ["fastapi", "multitenancy", "saas", "mysql", "mssql", "postgresql", "redis", "sqlalchemy", "redis", "async"]
+keywords = ["fastapi", "multitenancy", "saas", "mysql", "mssql", "postgresql", "sqlalchemy", "redis", "async"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Framework :: FastAPI",
@@ -72,6 +72,7 @@ dev = [
     "httpx>=0.27.0",
     "ruff>=0.4.0",
     "mypy>=1.10.0",
+    "bandit[toml]>=1.9.0",
     "types-python-jose>=3.5",
     "sqlalchemy[mypy]>=2.0.30",
 ]
@@ -183,6 +184,7 @@ ignore = [
     "D107",    # Missing docstring in __init__
     "TRY003",  # Avoid specifying long messages outside the exception class
     "PLR0913", # Too many arguments (common in FastAPI patterns)
+    "PLR2004", # Magic number
 ]
 
 [tool.ruff.lint.per-file-ignores]

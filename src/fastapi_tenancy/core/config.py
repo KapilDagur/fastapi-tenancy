@@ -132,7 +132,7 @@ class TenancyConfig(BaseSettings):
 
     database_pool_pre_ping: bool = Field(
         default=True,
-        description="Verify connections before checkout.  Recommended for all production deployments.", # noqa
+        description="Verify connections before checkout.  Recommended for all production deployments.",  # noqa
     )
 
     database_echo: bool = Field(
@@ -216,9 +216,7 @@ class TenancyConfig(BaseSettings):
 
     domain_suffix: str | None = Field(
         default=None,
-        description=(
-            "Base domain suffix for SUBDOMAIN resolution (e.g. ``'.example.com'``)."
-        ),
+        description=("Base domain suffix for SUBDOMAIN resolution (e.g. ``'.example.com'``)."),
     )
 
     path_prefix: str = Field(
@@ -258,8 +256,7 @@ class TenancyConfig(BaseSettings):
     encryption_key: str | None = Field(
         default=None,
         description=(
-            "Base64-encoded 32-byte encryption key.  Required when "
-            "enable_encryption=True."
+            "Base64-encoded 32-byte encryption key.  Required when enable_encryption=True."
         ),
     )
 
@@ -398,7 +395,7 @@ class TenancyConfig(BaseSettings):
         if values.get("resolution_strategy") == ResolutionStrategy.JWT and not v:
             msg = "jwt_secret is required when resolution_strategy is 'jwt'."
             raise ValueError(msg)
-        if v is not None and len(v) < 32:  # noqa: PLR2004
+        if v is not None and len(v) < 32:
             msg = "jwt_secret must be at least 32 characters long."
             raise ValueError(msg)
         return v
@@ -444,7 +441,7 @@ class TenancyConfig(BaseSettings):
         if values.get("enable_encryption") and not v:
             msg = "encryption_key is required when enable_encryption is True."
             raise ValueError(msg)
-        if v is not None and len(v) < 32:  # noqa: PLR2004
+        if v is not None and len(v) < 32:
             msg = "encryption_key must be at least 32 characters."
             raise ValueError(msg)
         return v
@@ -503,22 +500,19 @@ class TenancyConfig(BaseSettings):
             self.isolation_strategy == IsolationStrategy.HYBRID
             and self.premium_isolation_strategy == self.standard_isolation_strategy
         ):
-                msg = (
-                    "HYBRID isolation requires different strategies for premium and "
-                    "standard tenants.  Set premium_isolation_strategy and "
-                    "standard_isolation_strategy to different values."
-                )
-                raise ValueError(msg)
+            msg = (
+                "HYBRID isolation requires different strategies for premium and "
+                "standard tenants.  Set premium_isolation_strategy and "
+                "standard_isolation_strategy to different values."
+            )
+            raise ValueError(msg)
 
-        if (
-            self.isolation_strategy == IsolationStrategy.DATABASE
-            and not self.database_url_template
-        ):
-                msg = (
-                    "DATABASE isolation requires database_url_template to be set "
-                    "(e.g. 'postgresql+asyncpg://user:pass@host/{database_name}')."
-                )
-                raise ValueError(msg)
+        if self.isolation_strategy == IsolationStrategy.DATABASE and not self.database_url_template:
+            msg = (
+                "DATABASE isolation requires database_url_template to be set "
+                "(e.g. 'postgresql+asyncpg://user:pass@host/{database_name}')."
+            )
+            raise ValueError(msg)
 
         return self
 
