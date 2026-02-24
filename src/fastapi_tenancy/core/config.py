@@ -447,16 +447,20 @@ class TenancyConfig(BaseSettings):
                 "cache_enabled=True requires redis_url to be set."
             )
 
-        if self.isolation_strategy == IsolationStrategy.HYBRID:
-            if self.premium_isolation_strategy == self.standard_isolation_strategy:
+        if (
+            self.isolation_strategy == IsolationStrategy.HYBRID
+            and self.premium_isolation_strategy == self.standard_isolation_strategy
+        ):
                 raise ValueError(
                     "HYBRID isolation requires different strategies for premium and "
                     "standard tenants.  Set premium_isolation_strategy and "
                     "standard_isolation_strategy to different values."
                 )
 
-        if self.isolation_strategy == IsolationStrategy.DATABASE:
-            if not self.database_url_template:
+        if (
+            self.isolation_strategy == IsolationStrategy.DATABASE
+            and not self.database_url_template
+        ):
                 raise ValueError(
                     "DATABASE isolation requires database_url_template to be set "
                     "(e.g. 'postgresql+asyncpg://user:pass@host/{database_name}')."

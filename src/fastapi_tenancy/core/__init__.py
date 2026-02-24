@@ -30,7 +30,7 @@ from fastapi_tenancy.core.types import (
     TenantStatus,
 )
 
-__all__ = [
+__all__ = [ # noqa
     # Config
     "TenancyConfig",
     # Context

@@ -1,27 +1,10 @@
 """Tenant-scoped Redis cache.
 
 :class:`TenantCache` provides a strongly-isolated Redis key-value cache where
-every key is namespaced under ``{prefix}:tenant:{tenant_id}:``.  This
-guarantees that one tenant's cache entries can never collide with — or be
-read by — another tenant, even when all tenants share the same Redis instance.
+every key is namespaced under ``{prefix}:tenant:{tenant_id}:``. This
+guarantees that one tenant's cache entries can never collide with another's,
+even when all tenants share the same Redis instance.
 
-Key operations
---------------
-* :meth:`get` / :meth:`set` / :meth:`delete` — standard cache CRUD.
-* :meth:`exists` / :meth:`get_ttl` — inspection.
-* :meth:`increment` — atomic counter increment.
-* :meth:`clear_tenant` — purge all keys for a tenant (uses ``SCAN``).
-* :meth:`get_keys` — list keys for a tenant (uses ``SCAN``).
-* :meth:`stats` — lightweight usage statistics.
-
-Security
---------
-All ``KEYS`` operations use ``SCAN`` with a count hint to avoid blocking the
-Redis event loop on large keyspaces.  :meth:`clear_tenant` and :meth:`get_keys`
-are both non-blocking.
-
-Installation
-------------
 Requires the ``redis`` extra::
 
     pip install fastapi-tenancy[redis]
@@ -57,15 +40,12 @@ class _JSONEncoder(json.JSONEncoder):
 class TenantCache:
     """Tenant-scoped Redis cache with complete cross-tenant key isolation.
 
-    All keys are namespaced as ``{prefix}:tenant:{tenant_id}:{key}`` so two
-    tenants that happen to use the same *key* string never share values.
+    All keys are namespaced as ``{prefix}:tenant:{tenant_id}:{key}``.
 
     Args:
         redis_url: Redis connection URL (e.g. ``redis://localhost:6379/0``).
-        default_ttl: Default time-to-live in seconds.  Individual calls to
-            :meth:`set` may override this with a per-key TTL.
-        key_prefix: Namespace prefix applied to every key.  Use a distinct
-            prefix per application to avoid key collisions in a shared Redis.
+        default_ttl: Default time-to-live in seconds.
+        key_prefix: Namespace prefix applied to every key.
         max_connections: Maximum Redis connections in the pool.
 
     Example::
@@ -75,7 +55,7 @@ class TenantCache:
         await cache.set(tenant, "user_count", 100, ttl=300)
         count = await cache.get(tenant, "user_count")    # 100
         await cache.delete(tenant, "user_count")
-        deleted = await cache.clear_tenant(tenant)       # int: keys removed
+        deleted = await cache.clear_tenant(tenant)
         await cache.close()
     """
 
@@ -101,10 +81,6 @@ class TenantCache:
             max_connections,
         )
 
-    # ------------------------------------------------------------------
-    # Key helpers
-    # ------------------------------------------------------------------
-
     def _key(self, tenant: Tenant, key: str) -> str:
         """Build the full namespaced Redis key."""
         return f"{self._prefix}:tenant:{tenant.id}:{key}"
@@ -124,20 +100,8 @@ class TenantCache:
         except (json.JSONDecodeError, TypeError):
             return raw
 
-    # ------------------------------------------------------------------
-    # Core operations
-    # ------------------------------------------------------------------
-
     async def get(self, tenant: Tenant, key: str) -> Any:
-        """Return the cached value for *key*, or ``None`` on miss or error.
-
-        Args:
-            tenant: Owning tenant.
-            key: Cache key (relative to the tenant namespace).
-
-        Returns:
-            Deserialised value, or ``None`` when absent.
-        """
+        """Return the cached value for *key*, or ``None`` on miss or error."""
         full_key = self._key(tenant, key)
         try:
             raw = await self._redis.get(full_key)
@@ -163,7 +127,7 @@ class TenantCache:
             tenant: Owning tenant.
             key: Cache key.
             value: Any JSON-serialisable value.
-            ttl: Time-to-live in seconds.  Defaults to :attr:`_default_ttl`.
+            ttl: Time-to-live in seconds. Defaults to :attr:`_default_ttl`.
 
         Returns:
             ``True`` on success; ``False`` on serialisation or Redis error.
@@ -182,10 +146,6 @@ class TenantCache:
     async def delete(self, tenant: Tenant, key: str) -> bool:
         """Delete *key* from the cache.
 
-        Args:
-            tenant: Owning tenant.
-            key: Cache key to delete.
-
         Returns:
             ``True`` when the key existed and was deleted; ``False`` otherwise.
         """
@@ -199,15 +159,7 @@ class TenantCache:
             return False
 
     async def exists(self, tenant: Tenant, key: str) -> bool:
-        """Return ``True`` when *key* is present in the cache.
-
-        Args:
-            tenant: Owning tenant.
-            key: Cache key.
-
-        Returns:
-            Existence flag.
-        """
+        """Return ``True`` when *key* is present in the cache."""
         full_key = self._key(tenant, key)
         try:
             return bool(await self._redis.exists(full_key))
@@ -233,14 +185,6 @@ class TenantCache:
     async def increment(self, tenant: Tenant, key: str, amount: int = 1) -> int:
         """Atomically increment a counter by *amount* and return the new value.
 
-        Args:
-            tenant: Owning tenant.
-            key: Counter key.
-            amount: Increment step (default 1).
-
-        Returns:
-            New counter value.
-
         Raises:
             TenancyError: When Redis raises an error.
         """
@@ -253,17 +197,10 @@ class TenantCache:
             logger.error("Redis INCRBY failed key=%s: %s", full_key, exc)
             raise TenancyError(f"Failed to increment cache key: {exc}") from exc
 
-    # ------------------------------------------------------------------
-    # Bulk operations
-    # ------------------------------------------------------------------
-
     async def clear_tenant(self, tenant: Tenant) -> int:
         """Delete ALL cache entries for *tenant*.
 
         Uses ``SCAN`` with a count hint to avoid blocking Redis.
-
-        Args:
-            tenant: Tenant whose cache to purge.
 
         Returns:
             Number of Redis keys deleted.
@@ -287,13 +224,6 @@ class TenantCache:
 
         The returned keys are relative to the tenant namespace (i.e. the
         ``{prefix}:tenant:{id}:`` prefix is stripped).
-
-        Args:
-            tenant: Owning tenant.
-            pattern: Glob pattern (default: ``"*"`` — all keys).
-
-        Returns:
-            List of relative key strings.
         """
         full_pattern = f"{self._prefix}:tenant:{tenant.id}:{pattern}"
         prefix_len = len(f"{self._prefix}:tenant:{tenant.id}:")
@@ -309,15 +239,7 @@ class TenantCache:
     async def stats(self, tenant: Tenant) -> dict[str, Any]:
         """Return lightweight cache statistics for *tenant*.
 
-        Estimates total memory usage by sampling the first 100 keys and
-        extrapolating when there are more.
-
-        Args:
-            tenant: Owning tenant.
-
-        Returns:
-            Dictionary with keys ``tenant_id``, ``key_count``,
-            ``memory_bytes``, ``memory_kb``, and ``memory_mb``.
+        Estimates total memory usage by sampling the first 100 keys.
         """
         pattern = f"{self._prefix}:tenant:{tenant.id}:*"
         keys: list[str] = []
@@ -326,10 +248,12 @@ class TenantCache:
                 keys.append(str(key))
             sample = keys[:100]
             total_memory = 0
-            for key in sample:
-                mem = await self._redis.memory_usage(key)
-                if mem:
-                    total_memory += mem
+            if sample:
+                pipe = self._redis.pipeline(transaction=False)
+                for key in sample:
+                    pipe.memory_usage(key)
+                mem_results = await pipe.execute()
+                total_memory = sum(m for m in mem_results if m)
             if len(keys) > 100:
                 total_memory = int(total_memory * (len(keys) / 100))
             return {
