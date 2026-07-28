@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Security & reliability fixes
 
-> Eleven targeted fixes addressing concurrency safety, WebSocket error handling,
-> JWT security hardening, connection-pool lifecycle, and observability gaps.
+> Sixteen targeted fixes addressing concurrency safety, WebSocket error handling,
+> JWT security hardening, connection-pool lifecycle, per-tenant database naming,
+> secret redaction, cache correctness, and observability gaps.
 
 ### Added
 
@@ -47,6 +48,41 @@ missing or mismatched `aud` claim raise `TenantResolutionError` with reason
 
 When `audience=None` (the default), a `WARNING` is emitted at resolver
 construction time to alert operators of the cross-service token replay risk.
+
+**`TenancyConfig.jwt_audience` (`core/config.py`)**
+
+The `JWTTenantResolver.audience` mitigation shipped but could not be reached
+through config-driven wiring: `TenancyConfig` had no field for it and
+`manager._build_resolver()` never passed it, so every user who wired JWT
+resolution the documented way got `audience=None` and an unavoidable startup
+warning. Only a hand-built resolver injected as `custom_resolver` could turn it
+on.
+
+`jwt_audience: str | None = None` is now a config field
+(`TENANCY_JWT_AUDIENCE`) and is threaded into the resolver by the factory.
+Strongly recommended whenever one JWT secret is shared across services.
+
+**`TenancyConfig.l1_cache_enabled` and `l1_cache_active()` (`core/config.py`)**
+
+The in-process L1 `TenantCache` was only built when `cache_enabled=True`, which
+the cross-field validator ties to `redis_url` — so a single-process deployment
+that wanted only the microsecond in-process cache had to stand up Redis anyway,
+and the `l1_cache_max_size` / `l1_cache_ttl_seconds` knobs were effectively
+dead without it.
+
+`l1_cache_enabled` turns L1 on by itself and deliberately does **not** require
+`redis_url`: `TenantCache` is a pure in-process LRU that never contacts Redis.
+`cache_enabled=True` still implies L1, so existing behaviour is unchanged.
+`l1_cache_active()` is the helper the manager gates on.
+
+**`TenancyConfig.get_database_name()` (`core/config.py`)**
+
+The single source of truth for per-tenant database naming, derived from the
+tenant's validated identifier slug. See FIX 10.
+
+**`TenantCache.peek()` (`cache/tenant_cache.py`)**
+
+Counter-free, LRU-neutral read for bookkeeping on write paths. See FIX 16.
 
 **`_ws_close()` middleware helper (`middleware/tenancy.py`)**
 
@@ -150,6 +186,164 @@ Fix: the dependency function signature now accepts `request: Request` as a
 FastAPI dependency. `request.client.host` and
 `request.headers.get("user-agent")` are captured once and injected into every
 `AuditLog` entry produced by the returned `log()` callable.
+
+**FIX 10 — Per-tenant database name diverged between provisioning and migration
+(`core/config.py`, `isolation/database.py`, `isolation/base.py`,
+`migrations/manager.py`)**
+
+Two different derivations of the same name coexisted.
+`DatabaseIsolationProvider._database_name()` — which creates the database —
+derived it from `tenant.identifier`, producing `tenant_acme_corp_db`.
+`TenancyConfig.get_database_url_for_tenant()` — which
+`TenantMigrationManager` uses to build the Alembic URL — derived it from
+`tenant.id`, producing `tenant_tenant_ab3xyz9mqp2s_db`.
+
+Under DATABASE isolation with `tenant.database_url` unset (the normal case —
+`register_tenant` never populates it), the provider provisioned one database
+and `upgrade_all` pointed Alembic at another. Alembic then migrated a
+non-existent or auto-created empty database, and the tenant's real database was
+**never migrated, silently**.
+
+The id-based derivation carried a second defect: it lowercased a
+`token_urlsafe` value that is case-sensitive and contains both `-` and `_`, so
+`"tenant-aB"`/`"tenant-Ab"` and `"a-b"`/`"a_b"` collapsed onto the same database
+name — low probability, but cross-tenant data sharing as a blast radius.
+
+Fix: `TenancyConfig.get_database_name(tenant_identifier)` is now the single
+source of truth. The provider, the URL builder, `BaseIsolationProvider.
+get_database_url()`, and `TenantMigrationManager` all resolve through it, so
+they cannot disagree. The name derives from the **identifier**, a validated
+slug whose hyphen-to-underscore mapping is injective.
+
+**FIX 11 — `TenancyConfig.__repr__` leaked secrets (`core/config.py`)**
+
+Masking was implemented on `__str__` only. `__repr__` was left inheriting
+Pydantic's, so `logger.info("config=%r", config)`, `f"{config!r}"`, debugger
+dumps, and exception rendering printed `jwt_secret` and `encryption_key` in
+full. The f-string path *was* masked, which made the gap easy to miss.
+
+Fix: the masking moved to `__repr__` — the method that actually leaks in
+practice — and `__str__` now delegates to it. Both paths are redacted.
+
+**FIX 12 — Nested retry loops in `update_metadata` (`storage/database.py`)**
+
+The public `update_metadata` wrapped a 5-attempt retry loop around
+`_update_metadata_pg`, which already contained its own identical 5-attempt loop
+with the same serialization detection and back-off. The effective budget was the
+**product** of the two — up to 25 attempts with compounding back-off — which
+matched neither docstring and could not be read off either call site.
+
+Fix: the outer loop is gone. `_update_metadata_pg` owns the SERIALIZABLE
+transaction and therefore owns the retry budget; the public method keeps only
+its `TenantNotFoundError` passthrough and `TenancyError` wrapper.
+
+The single remaining budget is **25**, not 5. The number is set by contention,
+not preference: N concurrent writers on one row serialise, so a writer can lose
+up to N-1 rounds before its turn. `update_metadata` documents surviving 20
+concurrent patches, so any budget at or below 20 breaks that contract — cutting
+it to 5 makes concurrent merges fail against real PostgreSQL with a
+`TenancyError`, reporting a lost update as an error. The accidental 25 was the
+right order of magnitude for the wrong reason; it is now deliberate.
+
+Back-off is also **capped** at 50 ms with up to 5 ms of jitter, where it was
+previously uncapped exponential. At 25 attempts an uncapped `5 ms * 2**n` runs
+for minutes; the jitter stops losing writers from retrying into the same
+instant and re-colliding.
+
+**FIX 13 — `RedisTenantStore.get_by_identifier` had no corrupt-entry guard
+(`storage/redis.py`)**
+
+`get_by_id`, `_get_old_tenant`, and `get_by_ids` all wrap `_deserialize` and
+treat failure as a cache miss. `get_by_identifier` did not — so a truncated
+write or a `Tenant` schema change that invalidated older cached JSON turned the
+**primary request path for every resolver** into a hard `ValidationError`,
+while `get_by_id` degraded gracefully on the very same bad data.
+
+Fix: mirrors the `get_by_id` pattern — log a warning and fall through to the
+primary store.
+
+**FIX 14 — `_cache_invalidate` failures aborted already-committed writes
+(`storage/redis.py`)**
+
+`_cache_invalidate` had no error handling, unlike `_cache_set` which
+deliberately catches and logs. Every caller invokes it *after* the primary
+store has committed, so a Redis blip surfaced an exception for a write that had
+actually succeeded — leaving the caller unable to tell the difference, and a
+stale entry served for up to `ttl` seconds. Worst case: a deleted or suspended
+tenant kept being served as active.
+
+Fix: best-effort with a loud warning, matching `_cache_set`. The entry is
+bounded by `ttl`, and every mutating caller follows the invalidation with a
+`_cache_set` that overwrites both keys.
+
+**FIX 15 — `excluded_paths` was an unanchored prefix match
+(`middleware/tenancy.py`)**
+
+Matching was `path.startswith(prefix)`, so `excluded_paths=["/health"]` also
+exempted `/healthz`, `/health-internal`, and `/healthcheck-admin` from tenant
+resolution, the inactive-tenant check, and rate limiting — a quiet way to leave
+an endpoint unprotected by naming it close to an excluded one.
+
+Fix: matching is now segment-anchored — `path == prefix or
+path.startswith(prefix + "/")`. Trailing slashes on the configured prefix are
+ignored, so `"/api"` and `"/api/"` behave identically; excluding `"/"` still
+excludes the whole app.
+
+**FIX 16 — Write-path cache reads polluted the hit rate (`manager.py`)**
+
+`_CachingStoreProxy.update()` called `TenantCache.get()` to learn the previous
+identifier before a rename. `get()` bumps the hit/miss counters, so write
+traffic inflated `stats()["hit_rate_pct"]` — a metric meant to describe read
+traffic. A cache that was never read could still report a healthy hit rate.
+
+Fix: new `TenantCache.peek()` returns the entry without touching counters or
+LRU order, and the proxy's bookkeeping read uses it.
+
+### Changed
+
+**BREAKING — `TenancyConfig.get_database_url_for_tenant()` now requires
+`tenant_identifier` (`core/config.py`)**
+
+```python
+# before
+config.get_database_url_for_tenant(tenant.id)
+
+# after
+config.get_database_url_for_tenant(tenant.id, tenant.identifier)
+```
+
+Both arguments are required because the two template placeholders are fed from
+different fields: `{tenant_id}` from the opaque ID, and `{database_name}` from
+`get_database_name()`, which derives from the identifier. See FIX 10 for why
+the old id-based derivation was unsafe.
+
+Callers inside the library were all updated. External callers of this method —
+and of `BaseIsolationProvider.get_database_url()`, whose behaviour changed with
+it — must pass the identifier.
+
+**`TenantCache._max_size` / `._ttl` and `DatabaseIsolationProvider.
+_engine_cache.size` promoted to public properties**
+
+`TenancyManager` reached into these privates for logging and `get_metrics()`.
+They are now `TenantCache.max_size`, `TenantCache.ttl`, and
+`DatabaseIsolationProvider.engine_cache_size`.
+
+**`hash_value()` docstring now warns it is not a password KDF
+(`utils/security.py`)**
+
+A plain SHA-256 digest is correct for fingerprinting API keys and opaque
+tokens, and wrong for user-chosen secrets. The docstring says so explicitly and
+points at argon2/scrypt/bcrypt.
+
+**`SchemaIsolationProvider.apply_filters()` docstring corrected
+(`isolation/schema.py`)**
+
+It described `WHERE tenant_id = :id` as "the primary isolation mechanism" for
+prefix-mode dialects. In prefix mode isolation comes from the **table name**,
+not a column, and those per-tenant tables generally have no `tenant_id` column
+at all — so the filter would raise at execution time. The docstring now carries
+an explicit warning directing prefix-mode callers to
+`session.info["table_prefix"]`.
 
 ## [0.4.0] — 2026-04-02
 

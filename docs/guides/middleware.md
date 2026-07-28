@@ -34,8 +34,18 @@ app.add_middleware(
 
 ## Excluded paths
 
-Paths in `excluded_paths` bypass tenant resolution entirely. The check is a
-**prefix match** — `/health` excludes `/health`, `/health/live`, `/health/ready`, etc.
+Paths in `excluded_paths` bypass tenant resolution entirely — along with the
+inactive-tenant check and rate limiting.
+
+Matching is **segment-anchored**: `/health` excludes `/health` itself and
+anything nested under it (`/health/live`, `/health/ready`), but *not* sibling
+names that merely share the prefix — `/healthz`, `/health-internal`, and
+`/healthcheck-admin` all remain protected. Trailing slashes on the configured
+value are ignored, so `"/api"` and `"/api/"` behave identically.
+
+!!! warning "Excluding `/` excludes everything"
+    A bare `"/"` in `excluded_paths` bypasses tenancy for the entire
+    application.
 
 ```python
 excluded_paths=[

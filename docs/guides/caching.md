@@ -74,11 +74,12 @@ Entries expire after `ttl` seconds regardless of access pattern. Short TTLs (30�
 
 ### Configuration via `TenancyConfig`
 
-The in-process cache TTL and max size are first-class config fields:
+The in-process cache is enabled and sized through first-class config fields:
 
 ```python
 config = TenancyConfig(
     database_url="...",
+    l1_cache_enabled=True,      # TENANCY_L1_CACHE_ENABLED env var
     l1_cache_max_size=2000,     # TENANCY_L1_CACHE_MAX_SIZE env var
     l1_cache_ttl_seconds=120,   # TENANCY_L1_CACHE_TTL_SECONDS env var
 )
@@ -86,6 +87,15 @@ config = TenancyConfig(
 
 `TenancyManager` reads these fields during `initialize()` to configure the
 `TenantCache` instance automatically.
+
+!!! tip "L1 does not require Redis"
+    `l1_cache_enabled` turns the in-process cache on by itself — `TenantCache`
+    is a pure in-process LRU and never contacts Redis, so no `redis_url` is
+    needed. This is the right setting for a single-process deployment that
+    wants microsecond tenant lookups without running Redis.
+
+    `cache_enabled=True` (the Redis write-through cache below) still implies
+    L1, so you do not need both.
 
 ## Redis write-through cache
 
@@ -142,7 +152,7 @@ task is started in `initialize()` and cancelled in `close()`.
 | Scenario | Recommended settings |
 |----------|---------------------|
 | Single-process, low traffic | `cache_enabled=False` (default) |
-| Single-process, high traffic | `l1_cache_max_size=500`, `l1_cache_ttl_seconds=300` |
+| Single-process, high traffic | `l1_cache_enabled=True`, `l1_cache_max_size=500`, `l1_cache_ttl_seconds=300` — no Redis needed |
 | Multi-process, medium traffic | `cache_enabled=True`, `cache_ttl=300` |
 | Multi-process, high traffic | `cache_enabled=True`, `cache_ttl=60`, `l1_cache_ttl_seconds=30` |
 | Strict consistency required | `cache_enabled=False` or `l1_cache_ttl_seconds=1` |
