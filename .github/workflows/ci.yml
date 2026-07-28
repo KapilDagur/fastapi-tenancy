@@ -81,14 +81,14 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --locked
 
       - name: Ruff lint
         run: uv run ruff check src tests
@@ -110,14 +110,14 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --locked
 
       - name: Mypy
         run: uv run mypy src tests
@@ -136,14 +136,14 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --locked
 
       - name: Bandit scan
         run: uv run bandit -r src/fastapi_tenancy -ll -ii
@@ -166,14 +166,14 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
 
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --locked
 
       - name: Run unit tests (no services)
         run: |
@@ -228,14 +228,14 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
 
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --locked
 
       - name: Run integration tests (SQLite + Redis)
         run: |
@@ -306,14 +306,14 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --locked
 
       - name: Run PostgreSQL E2E tests
         run: |
@@ -375,14 +375,14 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
 
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --all-extras
+        run: uv sync --all-extras --locked
 
       - name: Run MySQL E2E tests
         run: |
@@ -450,7 +450,7 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
 
       - uses: actions/setup-python@v5
         with:
@@ -458,7 +458,7 @@ jobs:
 
       - name: Install docs dependencies
         run: |
-          uv sync --all-extras
+          uv sync --all-extras --locked
           if [ -f requirements-docs.txt ]; then
             uv pip install -r requirements-docs.txt
           fi

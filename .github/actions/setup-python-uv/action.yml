@@ -19,7 +19,7 @@ runs:
       with:
         version: "latest"
         enable-cache: true
-        cache-dependency-glob: "pyproject.toml"
+        cache-dependency-glob: "uv.lock"
 
     - name: Set up Python ${{ inputs.python-version }}
       uses: actions/setup-python@v5
@@ -28,4 +28,4 @@ runs:
 
     - name: Install project + extras
       shell: bash
-      run: uv sync --extra ${{ inputs.extras }}
+      run: uv sync --extra ${{ inputs.extras }} --locked

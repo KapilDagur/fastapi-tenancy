@@ -47,7 +47,7 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
 
       - uses: actions/setup-python@v5
         with:
@@ -55,7 +55,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --extra dev
+          uv sync --extra dev --locked
           if [ -f requirements-docs.txt ]; then
             uv pip install -r requirements-docs.txt
           fi
@@ -86,7 +86,7 @@ jobs:
         with:
           version: "latest"
           enable-cache: true
-          cache-dependency-glob: "pyproject.toml"
+          cache-dependency-glob: "uv.lock"
 
       - uses: actions/setup-python@v5
         with:
@@ -94,7 +94,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --extra dev
+          uv sync --extra dev --locked
           if [ -f requirements-docs.txt ]; then
             uv pip install -r requirements-docs.txt
           fi
