@@ -226,6 +226,11 @@ nav:
     - Development Setup: contributing/setup.md
     - Running Tests: contributing/testing.md
     - Code Style: contributing/style.md
+    - Architecture Decisions:
+      - 0001 Commit uv.lock: contributing/adr/0001-commit-uv-lock.md
+      - 0002 Devcontainer as canonical environment: contributing/adr/0002-devcontainer-canonical-environment.md
+      - 0003 Testcontainers replaces docker-compose: contributing/adr/0003-testcontainers-replaces-docker-compose.md
+      - 0004 Tenant database name derives from identifier: contributing/adr/0004-tenant-database-name-derives-from-identifier.md
 
 extra:
   version:

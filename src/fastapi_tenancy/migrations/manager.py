@@ -395,7 +395,8 @@ class TenantMigrationManager:
         if strategy == IsolationStrategy.DATABASE:
             # The database name must come from the same helper the isolation
             # provider used to CREATE the database, or Alembic migrates a
-            # different (usually non-existent) database.  See ADR / finding F1.
+            # different (usually non-existent) database and the tenant's real
+            # one is never migrated -- silently.  See ADR 0004.
             url = tenant.database_url or self._config.get_database_url_for_tenant(
                 tenant.id, tenant.identifier
             )
