@@ -266,6 +266,25 @@ class TestStats:
         c.get("miss2")
         assert c.stats()["misses"] == 2
 
+    def test_unknown_identifier_counts_as_a_miss(self) -> None:
+        """An identifier absent from the index is a miss like any other.
+
+        It used to return early without counting, so hit_rate_pct was
+        overstated for any workload asking about tenants that do not exist —
+        probe traffic, scanners, or simply a cold cache.
+        """
+        c = TenantCache(ttl=3600)
+        assert c.get_by_identifier("no-such-tenant") is None
+        assert c.stats()["misses"] == 1
+
+    def test_hit_rate_reflects_unknown_identifier_lookups(self) -> None:
+        c = TenantCache(ttl=3600)
+        t = _t("t1", "acme-corp")
+        c.set(t)
+        c.get_by_identifier("acme-corp")  # hit
+        c.get_by_identifier("ghost-corp")  # miss
+        assert c.stats()["hit_rate_pct"] == 50
+
 
 class TestPurgeExpired:
     def test_purge_removes_stale_entries(self) -> None:

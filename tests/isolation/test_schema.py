@@ -292,6 +292,108 @@ class TestInitializeDestroyPrefix:
         finally:
             schema_provider.engine = original_engine
 
+    async def test_destroy_skips_foreign_table_with_invalid_identifier(
+        self,
+        schema_provider: SchemaIsolationProvider,
+        make_tenant: Callable[..., Tenant],
+        simple_metadata: sa.MetaData,
+    ) -> None:
+        """FIX: ``_destroy_prefix`` previously asserted every prefix-matching
+        table name with :func:`assert_safe_schema_name` and let the ``ValueError``
+        bubble.  An operator-added table whose name shares the prefix but
+        fails our strict identifier grammar (e.g. contains a hyphen) would
+        abort the destroy loop mid-flight, leaving the tenant in a
+        half-destroyed state.  The fix logs and skips such tables so the
+        loop continues and the rest of the tenant's tables are dropped.
+        """
+        from sqlalchemy import text as sync_text  # noqa: PLC0415
+
+        t = make_tenant(identifier="destroy-skip-test")
+        await schema_provider.initialize_tenant(t, metadata=simple_metadata)
+        assert await schema_provider.verify_isolation(t) is True
+
+        prefix = schema_provider.get_table_prefix(t)
+        foreign_name = f"{prefix}legacy-archive"  # hyphen fails the validator
+
+        # Manually create the foreign table — bypass SQLAlchemy MetaData since
+        # we want exactly this table name to be present on the engine.
+        async with schema_provider.engine.begin() as conn:
+            await conn.execute(sync_text(f'CREATE TABLE "{foreign_name}" (x INTEGER)'))
+
+        # Destroy must complete (not raise) and must drop *our* tables; the
+        # foreign one is skipped.
+        await schema_provider.destroy_tenant(t)
+
+        # Inspect the table inventory directly — we need finer assertions
+        # than verify_isolation can give us (verify_isolation returns True
+        # whenever *any* table matches the prefix, which would include the
+        # surviving foreign one).
+        async with schema_provider.engine.connect() as conn:
+
+            def _snapshot(sync_conn: Any) -> list[str]:
+                from sqlalchemy import inspect as sa_inspect  # noqa: PLC0415
+
+                insp = sa_inspect(sync_conn)
+                return list(insp.get_table_names())
+
+            tables = await conn.run_sync(_snapshot)
+
+        # Our prefixed `items` table is gone.
+        our_items_table = f"{prefix}items"
+        assert our_items_table not in tables, (
+            f"Expected our prefixed table {our_items_table!r} to be dropped, "
+            f"but it is still present: {tables}"
+        )
+        # The foreign table is untouched — it was not created by this lib so
+        # destroying it would be out of scope.
+        assert foreign_name in tables, (
+            f"_destroy_prefix unexpectedly dropped foreign table {foreign_name!r} "
+            "— it failed identifier validation and should have been skipped"
+        )
+
+        # Clean up the foreign table so other tests in this engine don't
+        # see it leaking through (sqlite_engine is session-scoped via the
+        # fixture stack).
+        async with schema_provider.engine.begin() as conn:
+            await conn.execute(sync_text(f'DROP TABLE "{foreign_name}"'))
+
+    async def test_destroy_skip_logs_warning(
+        self,
+        schema_provider: SchemaIsolationProvider,
+        make_tenant: Callable[..., Tenant],
+        simple_metadata: sa.MetaData,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Skipping a foreign table must emit a WARNING so operators see it."""
+        import logging  # noqa: PLC0415
+
+        from sqlalchemy import text as sync_text  # noqa: PLC0415
+
+        t = make_tenant(identifier="destroy-skip-log")
+        await schema_provider.initialize_tenant(t, metadata=simple_metadata)
+        prefix = schema_provider.get_table_prefix(t)
+        foreign_name = f"{prefix}weird-name"
+
+        async with schema_provider.engine.begin() as conn:
+            await conn.execute(sync_text(f'CREATE TABLE "{foreign_name}" (x INTEGER)'))
+
+        with caplog.at_level(logging.WARNING, logger="fastapi_tenancy.isolation.schema"):
+            await schema_provider.destroy_tenant(t)
+
+        skip_warnings = [
+            r
+            for r in caplog.records
+            if "skipping" in r.message.lower() and foreign_name in r.message
+        ]
+        assert skip_warnings, (
+            f"Expected a WARNING about skipping the foreign table {foreign_name!r}; "
+            f"got: {[r.message for r in caplog.records]}"
+        )
+
+        # Clean up the foreign table.
+        async with schema_provider.engine.begin() as conn:
+            await conn.execute(sync_text(f'DROP TABLE "{foreign_name}"'))
+
 
 @pytest.mark.unit
 class TestVerifyIsolationPrefix:

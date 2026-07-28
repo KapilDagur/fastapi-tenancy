@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Security & reliability fixes
 
-> Twenty-four targeted fixes addressing rate-limit enforcement, JWT algorithm
+> Twenty-six targeted fixes addressing rate-limit enforcement, JWT algorithm
 > confusion, tenant enumeration, startup/shutdown races, WebSocket error
 > handling, connection-pool lifecycle, per-tenant database naming, secret
 > redaction, cache correctness, and observability gaps.
@@ -419,6 +419,29 @@ Fix: disposal moves to a background task. Strong task references are kept in
 which would otherwise let the GC collect it mid-flight and leave the pool open.
 `close()` drains in-flight disposals, bounded by a 30 s timeout so a
 partitioned database cannot hang lifespan shutdown past a SIGTERM grace period.
+
+**FIX 25 — A foreign table left a tenant half-destroyed
+(`isolation/schema.py`)**
+
+In prefix mode, `destroy_tenant` validated every prefix-matching table name
+with `assert_safe_schema_name` and let the `ValueError` propagate. A table that
+shares the tenant prefix but fails the identifier grammar — an operator-added
+`t_acme_legacy-archive`, say — aborted the loop partway through, leaving the
+tenant's already-dropped tables gone, the rest intact, and no record of where
+it stopped.
+
+Fix: such tables are logged at WARNING and skipped, so the loop completes. They
+are also deliberately *not* dropped: a name this library could never have
+generated was created by something else and is not ours to delete.
+
+**FIX 26 — Unknown identifiers were not counted as cache misses
+(`cache/tenant_cache.py`)**
+
+`get_by_identifier()` returned early when the identifier was absent from the
+index, without incrementing `_misses`. `hit_rate_pct` was therefore overstated
+for any workload that asks about tenants which do not exist — probe traffic,
+scanners, or simply a cold cache. Same family as FIX 16: the metric must
+describe reality before it can be used to size the cache.
 
 ### Added
 

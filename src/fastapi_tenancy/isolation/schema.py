@@ -894,14 +894,32 @@ class SchemaIsolationProvider(BaseIsolationProvider):
 
                     insp = sa_inspect(sync_conn)
                     tables = [t for t in insp.get_table_names() if t.startswith(prefix)]
+                    dropped = 0
                     for tbl in tables:
-                        assert_safe_schema_name(
-                            tbl, context=f"prefix table drop tenant={tenant.id!r}"
-                        )
+                        try:
+                            assert_safe_schema_name(
+                                tbl, context=f"prefix table drop tenant={tenant.id!r}"
+                            )
+                        except ValueError:
+                            # A table that shares the prefix but does not match
+                            # our identifier grammar was not created by this
+                            # library, so it is not ours to drop.  Skipping and
+                            # continuing beats raising: aborting mid-loop leaves
+                            # the tenant half-destroyed, with the already-dropped
+                            # tables gone and no record of where it stopped.
+                            logger.warning(
+                                "Skipping table %r during destroy of tenant %s — name "
+                                "fails identifier validation (likely created outside "
+                                "this library)",
+                                tbl,
+                                tenant.id,
+                            )
+                            continue
                         sync_conn.execute(sync_text(f'DROP TABLE IF EXISTS "{tbl}"'))
+                        dropped += 1
                     logger.warning(
                         "Destroyed %d prefixed tables for tenant %s",
-                        len(tables),
+                        dropped,
                         tenant.id,
                     )
                     return len(tables)

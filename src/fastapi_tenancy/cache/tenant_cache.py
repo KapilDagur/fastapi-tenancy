@@ -189,6 +189,11 @@ class TenantCache:
         """
         tenant_id = self._id_by_ident.get(identifier)
         if tenant_id is None:
+            # An identifier absent from the index is a miss like any other.
+            # This branch used to return without counting it, so hit_rate_pct
+            # was overstated for any workload that asks about tenants which do
+            # not exist — probe traffic, scanners, or simply a cold cache.
+            self._misses += 1
             return None
         return self.get(tenant_id)
 
