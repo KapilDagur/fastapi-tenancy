@@ -27,6 +27,7 @@ For the corresponding environment variables, see [Environment Variables](env-var
 | `redis_url` | `str\|None` | `None` | `TENANCY_REDIS_URL` | required for cache and rate limiting |
 | `cache_ttl` | `int` | `3600` | `TENANCY_CACHE_TTL` | seconds |
 | `cache_enabled` | `bool` | `False` | `TENANCY_CACHE_ENABLED` | requires redis_url |
+| `l1_cache_enabled` | `bool` | `False` | `TENANCY_L1_CACHE_ENABLED` | in-process cache without Redis; implied by `cache_enabled` |
 | `l1_cache_max_size` | `int` | `1000` | `TENANCY_L1_CACHE_MAX_SIZE` | 10–100000; in-process LRU cache size |
 | `l1_cache_ttl_seconds` | `int` | `60` | `TENANCY_L1_CACHE_TTL_SECONDS` | min 1; in-process cache entry TTL |
 | `enable_rate_limiting` | `bool` | `False` | `TENANCY_ENABLE_RATE_LIMITING` | requires redis_url |
@@ -39,6 +40,7 @@ For the corresponding environment variables, see [Environment Variables](env-var
 | `jwt_secret` | `str\|None` | `None` | `TENANCY_JWT_SECRET` | required for jwt; min 32 chars |
 | `jwt_algorithm` | `str` | `HS256` | `TENANCY_JWT_ALGORITHM` | |
 | `jwt_tenant_claim` | `str` | `tenant_id` | `TENANCY_JWT_TENANT_CLAIM` | |
+| `jwt_audience` | `str\|None` | `None` | `TENANCY_JWT_AUDIENCE` | expected `aud` claim; prevents cross-service token replay |
 | `enable_audit_logging` | `bool` | `True` | `TENANCY_ENABLE_AUDIT_LOGGING` | |
 | `enable_encryption` | `bool` | `False` | `TENANCY_ENABLE_ENCRYPTION` | |
 | `encryption_key` | `str\|None` | `None` | `TENANCY_ENCRYPTION_KEY` | required if encryption on; min 32 chars |

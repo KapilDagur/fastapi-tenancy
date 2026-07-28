@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased] — Security & reliability fixes
+## [Unreleased]
+
+Nothing yet.
+
+---
+
+## [0.5.0] — 2026-07-28 — Security & reliability
+
+### Upgrading from 0.4.x
+
+Two changes need action. Everything else is backward compatible.
+
+**1. `get_database_url_for_tenant()` takes a second argument.**
+
+```python
+# before
+config.get_database_url_for_tenant(tenant.id)
+# after
+config.get_database_url_for_tenant(tenant.id, tenant.identifier)
+```
+
+You are affected only if you call it directly, or
+`BaseIsolationProvider.get_database_url()`. A missed call site is a `TypeError`
+at the call, not a silent change. See FIX 10.
+
+**2. Isolation providers no longer convert your exceptions into
+`IsolationError`.**
+
+If a route raises while holding a tenant session, that exception now propagates
+unchanged instead of arriving as `IsolationError`. This is what makes
+`HTTPException(404)` work in a tenant-scoped route at all — previously it
+reached the client as a 500. Only `SQLAlchemyError` still becomes
+`IsolationError`. If you catch `IsolationError` around application errors, catch
+the real exception type instead. See FIX 28.
+
+**Operators of DATABASE-isolated deployments** should also read FIX 10: tenants
+provisioned before this release may hold a database under the old, id-derived
+name. Those tenants were never successfully migrated, so the affected databases
+are empty or partial — confirm which names exist before upgrading, and set
+`Tenant.database_url` explicitly for any tenant whose real data lives under an
+old name.
 
 > Twenty-eight targeted fixes addressing rate-limit enforcement, JWT algorithm
 > confusion, tenant enumeration, startup/shutdown races, WebSocket error
@@ -931,6 +971,7 @@ the session never opens.
 
 ---
 
+[0.5.0]: https://github.com/fastapi-extensions/fastapi-tenancy/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/fastapi-extensions/fastapi-tenancy/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/fastapi-extensions/fastapi-tenancy/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/fastapi-extensions/fastapi-tenancy/releases/tag/v0.2.0

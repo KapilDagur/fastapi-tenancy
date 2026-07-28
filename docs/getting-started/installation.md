@@ -106,7 +106,7 @@ below shows the correct URL scheme for each database:
 
 ```python
 import fastapi_tenancy
-print(fastapi_tenancy.__version__)  # 0.4.0
+print(fastapi_tenancy.__version__)  # 0.5.0
 ```
 
 ## Local databases for development

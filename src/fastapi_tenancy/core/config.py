@@ -699,7 +699,7 @@ class TenancyConfig(BaseSettings):
         ``{database_name}`` from :meth:`get_database_name`, which derives from
         the identifier.
 
-        .. versionchanged:: 0.5
+        .. versionchanged:: 0.5.0
             *tenant_identifier* is now required.  Previously the database name
             was derived from ``tenant_id``, which did not match the name
             ``DatabaseIsolationProvider`` actually creates — migrations were
