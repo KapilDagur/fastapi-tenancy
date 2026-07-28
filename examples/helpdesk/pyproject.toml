@@ -12,6 +12,9 @@ requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
     "fastapi-tenancy[postgres]",
+    "fastapi-users[oauth,sqlalchemy]>=15.0",
+    "sqladmin>=0.20",
+    "itsdangerous>=2.2",
     "uvicorn[standard]>=0.30",
 ]
 

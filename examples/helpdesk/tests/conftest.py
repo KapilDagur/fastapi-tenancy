@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from _helpers import OpenTicket, Provision
+from _helpers import OpenTicket, Promote, Provision, SignIn
 from asgi_lifespan import LifespanManager
 from fastapi_tenancy import IsolationStrategy, ResolutionStrategy, TenancyConfig
 import httpx
@@ -34,7 +34,10 @@ def postgres_url() -> Iterator[str]:
     except Exception as exc:  # pragma: no cover - environment dependent
         pytest.skip(f"Docker is not available: {exc}")
 
-    from testcontainers.postgres import PostgresContainer
+    try:  # testcontainers >= 4.13 moved the module
+        from testcontainers.community.postgres import PostgresContainer
+    except ImportError:  # pragma: no cover - older testcontainers
+        from testcontainers.postgres import PostgresContainer
 
     with PostgresContainer(_PG_IMAGE, driver="asyncpg") as pg:
         yield pg.get_connection_url()
@@ -115,13 +118,75 @@ def provision(client: httpx.AsyncClient) -> Provision:
 
 
 @pytest.fixture
+def sign_in(client: httpx.AsyncClient, promote: Promote) -> SignIn:
+    """Return a helper that creates a user in *tenant* and returns auth headers.
+
+    Every tenant-scoped route needs both the tenant header and a bearer token
+    for a user of that tenant, so tests ask for the pair together.
+    """
+
+    async def _sign_in(tenant: str, role: str = "admin") -> dict[str, str]:
+        email = f"{role}@{tenant}.example.com"
+        password = "correct-horse-battery-staple"
+        resp = await client.post(
+            "/auth/register",
+            headers={"X-Tenant-ID": tenant},
+            json={"email": email, "password": password},
+        )
+        assert resp.status_code == 201, resp.text
+        if role == "admin":
+            await promote(tenant, email)
+        login = await client.post(
+            "/auth/login",
+            headers={"X-Tenant-ID": tenant},
+            data={"username": email, "password": password},
+        )
+        assert login.status_code == 200, login.text
+        return {
+            "X-Tenant-ID": tenant,
+            "Authorization": f"Bearer {login.json()['access_token']}",
+        }
+
+    return _sign_in
+
+
+@pytest.fixture
+def promote(postgres_url: str) -> Promote:
+    """Return a helper that grants a user the tenant-admin role.
+
+    Done in SQL rather than through the API on purpose: there is deliberately
+    no endpoint that lets a user change their own role, so the test has to
+    reach past the API exactly as an operator would.
+    """
+
+    async def _promote(tenant: str, email: str) -> None:
+        from sqlalchemy import text
+        from sqlalchemy.ext.asyncio import create_async_engine
+
+        schema = f"tenant_{tenant.replace('-', '_')}"
+        engine = create_async_engine(postgres_url, isolation_level="AUTOCOMMIT")
+        try:
+            async with engine.connect() as conn:
+                await conn.execute(
+                    text(f'UPDATE "{schema}"."user" SET role = :role WHERE email = :email'),
+                    {"role": "admin", "email": email},
+                )
+        finally:
+            await engine.dispose()
+
+    return _promote
+
+
+@pytest.fixture
 def open_ticket(client: httpx.AsyncClient) -> OpenTicket:
     """Return a helper that opens a ticket for a given tenant."""
 
-    async def _open(tenant: str, subject: str, body: str = "") -> dict[str, Any]:
+    async def _open(
+        tenant: str, subject: str, body: str = "", headers: dict[str, str] | None = None
+    ) -> dict[str, Any]:
         resp = await client.post(
             "/tickets",
-            headers={"X-Tenant-ID": tenant},
+            headers=headers or {"X-Tenant-ID": tenant},
             json={
                 "subject": subject,
                 "body": body,

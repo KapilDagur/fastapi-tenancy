@@ -81,8 +81,11 @@ from sqlalchemy import select
 # parameter* and every request fails with
 # `{"loc": ["query", "db"], "msg": "Field required"}`.
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.middleware.sessions import SessionMiddleware
 
-from helpdesk.models import Base, Ticket
+from helpdesk.admin import mount_admin
+from helpdesk.auth import make_auth, make_user_dependencies
+from helpdesk.models import Base, Ticket, User
 from helpdesk.schemas import (
     TenantCreate,
     TenantOut,
@@ -90,6 +93,9 @@ from helpdesk.schemas import (
     TicketCreate,
     TicketOut,
     TicketUpdate,
+    UserCreate,
+    UserOut,
+    UserUpdate,
 )
 
 DEFAULT_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/postgres"
@@ -146,6 +152,11 @@ def create_app(config: TenancyConfig | None = None) -> FastAPI:
     get_tenant_db = make_tenant_db_dependency(manager)
     get_tenant_config = make_tenant_config_dependency(manager)
 
+    # fastapi-users, layered on the tenant-scoped session: the user table, the
+    # token table and the auth strategy all belong to the resolved tenant.
+    users, auth_backend = make_auth(get_tenant_db)
+    current_user, require_agent, require_admin = make_user_dependencies(users)
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await manager.initialize()
@@ -166,10 +177,33 @@ def create_app(config: TenancyConfig | None = None) -> FastAPI:
     app.add_middleware(
         TenancyMiddleware,
         manager=manager,
-        excluded_paths=["/health", "/admin"],
+        # "/panel" is the operator UI: cross-tenant, so it carries no
+        # X-Tenant-ID and must bypass resolution like "/admin" does.
+        excluded_paths=["/health", "/admin", "/panel"],
+    )
+
+    # Signed session cookie for the operator panel. Added after the tenancy
+    # middleware so it wraps it (FastAPI applies middleware in reverse).
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=os.getenv("HELPDESK_SECRET", "test-secret-not-for-production-use"),
+        same_site="lax",
+        https_only=False,  # set True behind TLS in production
     )
 
     app.state.manager = manager
+
+    ###################
+    # Auth (per tenant)
+    ###################
+
+    # Every route below is tenant-scoped: the caller must send X-Tenant-ID and
+    # authenticate as a user of *that* tenant.
+    app.include_router(users.get_auth_router(auth_backend), prefix="/auth", tags=["auth"])
+    app.include_router(
+        users.get_register_router(UserOut, UserCreate), prefix="/auth", tags=["auth"]
+    )
+    app.include_router(users.get_users_router(UserOut, UserUpdate), prefix="/users", tags=["users"])
 
     ####################
     # Operator surface #
@@ -236,10 +270,12 @@ def create_app(config: TenancyConfig | None = None) -> FastAPI:
     async def whoami(
         tenant: TenantDep,
         tenant_config: Annotated[Any, Depends(get_tenant_config)],
+        user: Annotated[User, Depends(current_user)],
     ) -> TenantQuota:
-        """Return the calling tenant and the quota parsed from its metadata."""
+        """Return the calling tenant, the caller, and the tenant's quota."""
         return TenantQuota(
             tenant=TenantOut.model_validate(tenant, from_attributes=True),
+            user=UserOut.model_validate(user, from_attributes=True),
             max_users=tenant_config.max_users,
             rate_limit_per_minute=tenant_config.rate_limit_per_minute,
             features_enabled=tenant_config.features_enabled,
@@ -249,6 +285,7 @@ def create_app(config: TenancyConfig | None = None) -> FastAPI:
     async def open_ticket(
         payload: TicketCreate,
         db: Annotated[AsyncSession, Depends(get_tenant_db)],
+        user: Annotated[User, Depends(require_agent)],
     ) -> TicketOut:
         """Open a ticket in the caller's schema.
 
@@ -263,6 +300,7 @@ def create_app(config: TenancyConfig | None = None) -> FastAPI:
             subject=payload.subject,
             body=payload.body,
             requester_email=payload.requester_email,
+            created_by_id=user.id,
         )
         db.add(ticket)
         await db.commit()
@@ -272,6 +310,7 @@ def create_app(config: TenancyConfig | None = None) -> FastAPI:
     @app.get("/tickets", tags=["tickets"])
     async def list_tickets(
         db: Annotated[AsyncSession, Depends(get_tenant_db)],
+        _user: Annotated[User, Depends(require_agent)],
         ticket_status: str | None = None,
     ) -> list[TicketOut]:
         """List the caller's tickets, newest first."""
@@ -285,6 +324,7 @@ def create_app(config: TenancyConfig | None = None) -> FastAPI:
     async def get_ticket(
         ticket_id: int,
         db: Annotated[AsyncSession, Depends(get_tenant_db)],
+        _user: Annotated[User, Depends(require_agent)],
     ) -> TicketOut:
         """Fetch one ticket by id.
 
@@ -301,6 +341,7 @@ def create_app(config: TenancyConfig | None = None) -> FastAPI:
         ticket_id: int,
         payload: TicketUpdate,
         db: Annotated[AsyncSession, Depends(get_tenant_db)],
+        _user: Annotated[User, Depends(require_agent)],
     ) -> TicketOut:
         """Apply a partial update to one of the caller's tickets."""
         changes = payload.model_dump(exclude_unset=True)
@@ -319,13 +360,21 @@ def create_app(config: TenancyConfig | None = None) -> FastAPI:
     async def delete_ticket(
         ticket_id: int,
         db: Annotated[AsyncSession, Depends(get_tenant_db)],
+        _user: Annotated[User, Depends(require_admin)],
     ) -> None:
-        """Delete one of the caller's tickets."""
+        """Delete a ticket. Requires the tenant-admin role.
+
+        Deletion is the one destructive verb here, so it is the one gated
+        above agent level -- an agent closes a ticket, an admin erases it.
+        """
         row = await db.get(Ticket, ticket_id)
         if row is None:
             raise HTTPException(status.HTTP_404_NOT_FOUND, "No such ticket")
         await db.delete(row)
         await db.commit()
+
+    # Operator panel over the tenant registry (public schema).
+    mount_admin(app, store._engine)
 
     return app
 

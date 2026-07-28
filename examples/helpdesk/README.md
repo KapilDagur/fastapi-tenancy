@@ -17,21 +17,28 @@ dependency to the library.
 | **Isolation** | `IsolationStrategy.SCHEMA` — one PostgreSQL schema per tenant. The models carry **no `tenant_id` column**: the schema boundary *is* the isolation, so a handler cannot leak by forgetting a `WHERE` clause. |
 | **Resolution** | `X-Tenant-ID` header. Switching to subdomain or JWT is a config change, not a code change. |
 | **Wiring** | The manager is built once in `create_app()` and captured by the dependency factories — no `app.state` lookups, no startup-order dependency. |
-| **Excluded paths** | `/health` and `/admin` bypass tenancy. Matching is segment-anchored, so `/admin` does not also exempt `/administrator`. |
+| **Excluded paths** | `/health`, `/admin` and `/panel` bypass tenancy. Matching is segment-anchored, so `/admin` does not also exempt `/administrator`. |
 | **Caching** | `l1_cache_enabled=True` — the in-process LRU, no Redis required. |
 | **Provisioning** | `register_tenant(app_metadata=Base.metadata)` creates the schema *and* its tables, and rolls the row back if provisioning fails. |
+| **AuthN** | `fastapi-users` with a **per-tenant** user table and a database token strategy — so tokens can be revoked, and a token issued for one customer is meaningless against another. |
+| **AuthZ** | `agent` / `admin` roles *within* a tenant. Deleting a ticket needs admin; the tenant boundary itself is the schema, so no role can cross it. |
+| **Operator panel** | `sqladmin` at `/panel`, session-authenticated, managing the tenant registry. |
 
 ## Layout
 
 ```
 src/helpdesk/
-  app.py        # create_app() — routes, lifespan, middleware
-  models.py     # per-tenant SQLAlchemy models (no tenant_id anywhere)
+  app.py        # create_app() — routes, lifespan, middleware, router wiring
+  auth.py       # fastapi-users wiring on the tenant-scoped session
+  admin.py      # sqladmin operator panel over the tenant registry
+  models.py     # per-tenant models: User, AccessToken, Ticket (no tenant_id)
   schemas.py    # request/response models
 tests/
-  conftest.py       # Testcontainers PostgreSQL + lifespan-managed client
-  test_crud.py      # full CRUD over tickets
-  test_isolation.py # the cross-tenant guarantees
+  conftest.py          # Testcontainers PostgreSQL + lifespan-managed client
+  test_crud.py         # full CRUD over tickets
+  test_isolation.py    # the cross-tenant guarantees
+  test_auth.py         # registration, login, roles, cross-tenant tokens
+  test_admin_panel.py  # operator panel access and safety
 ```
 
 ## Running it
@@ -51,29 +58,64 @@ curl -XPOST localhost:8000/admin/tenants \
      -H 'content-type: application/json' \
      -d '{"identifier":"acme-corp","name":"Acme","plan":"pro"}'
 
-curl -XPOST localhost:8000/tickets -H 'X-Tenant-ID: acme-corp' \
+# Register a user in that tenant and log in.
+curl -XPOST localhost:8000/auth/register -H 'X-Tenant-ID: acme-corp' \
      -H 'content-type: application/json' \
+     -d '{"email":"agent@acme.example.com","password":"correct-horse-battery-staple"}'
+
+TOKEN=$(curl -s -XPOST localhost:8000/auth/login -H 'X-Tenant-ID: acme-corp' \
+     -d 'username=agent@acme.example.com&password=correct-horse-battery-staple' \
+     | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
+
+curl -XPOST localhost:8000/tickets -H "X-Tenant-ID: acme-corp" \
+     -H "Authorization: Bearer $TOKEN" -H 'content-type: application/json' \
      -d '{"subject":"Printer on fire","requester_email":"ops@acme.test"}'
 
-curl localhost:8000/tickets -H 'X-Tenant-ID: acme-corp'
+curl localhost:8000/tickets -H "X-Tenant-ID: acme-corp" -H "Authorization: Bearer $TOKEN"
 ```
 
 Interactive docs: <http://localhost:8000/docs>.
+Operator panel: <http://localhost:8000/panel> (`operator` / `operator-dev-password`
+by default — override with `HELPDESK_OPERATOR_USER` / `HELPDESK_OPERATOR_PASSWORD`).
+
+Set `HELPDESK_SECRET` in any real deployment; it signs both the auth tokens and
+the operator session cookie.
 
 ## API
 
-| Method | Path | Tenant header | Notes |
-|---|---|---|---|
-| `GET` | `/health` | no | liveness; excluded from tenancy |
-| `POST` | `/admin/tenants` | no | provision an organisation + its schema |
-| `GET` | `/admin/tenants` | no | list all tenants |
-| `POST` | `/admin/tenants/{identifier}/suspend` | no | suspend; its requests then 403 |
-| `GET` | `/me` | yes | caller's tenant and resolved quota |
-| `POST` | `/tickets` | yes | create |
-| `GET` | `/tickets` | yes | list, `?ticket_status=` filter |
-| `GET` | `/tickets/{id}` | yes | read |
-| `PATCH` | `/tickets/{id}` | yes | partial update |
-| `DELETE` | `/tickets/{id}` | yes | delete |
+"Auth" below means a bearer token for a user **of that tenant**.
+
+| Method | Path | Tenant header | Auth | Notes |
+|---|---|---|---|---|
+| `GET` | `/health` | no | no | liveness; excluded from tenancy |
+| `POST` | `/admin/tenants` | no | no | provision an organisation + its schema |
+| `GET` | `/admin/tenants` | no | no | list all tenants |
+| `POST` | `/admin/tenants/{identifier}/suspend` | no | no | suspend; its requests then 403 |
+| `*` | `/panel/...` | no | operator | sqladmin UI over the tenant registry |
+| `POST` | `/auth/register` | yes | no | create a user in that tenant |
+| `POST` | `/auth/login` | yes | no | returns a bearer token |
+| `POST` | `/auth/logout` | yes | agent | revokes the token server-side |
+| `GET`/`PATCH` | `/users/me` | yes | agent | self-service profile |
+| `GET` | `/me` | yes | agent | caller, tenant and resolved quota |
+| `POST` | `/tickets` | yes | agent | create |
+| `GET` | `/tickets` | yes | agent | list, `?ticket_status=` filter |
+| `GET` | `/tickets/{id}` | yes | agent | read |
+| `PATCH` | `/tickets/{id}` | yes | agent | partial update |
+| `DELETE` | `/tickets/{id}` | yes | **admin** | delete |
+
+### The security property worth reading
+
+Users live in each tenant's own schema, so two customers can hold rows with the
+same primary key. What stops Acme's token from working against Globex is that
+the `AccessToken` table is *also* per-tenant: the row simply does not exist
+when the request resolves elsewhere, so the lookup fails.
+`test_auth.py::TestCrossTenantTokens` asserts exactly this. Move the token
+table to a shared schema and the guarantee disappears silently.
+
+The operator panel is a different trust domain: it is cross-tenant, sits
+outside tenant resolution, and has its own session login. It deliberately
+cannot create or delete tenants — a registry row without a schema is a tenant
+whose every request fails, and deleting the row would orphan a live schema.
 
 ## QA gate
 
@@ -102,12 +144,21 @@ uninitialised and every request failing on a missing `tenants` table.
 
 ## Things this example is not
 
-- **The `/admin` routes have no authentication.** They provision and suspend
-  tenants platform-wide. Put them behind operator-only authn/authz, a separate
-  port, or a private network before using this shape.
+- **The JSON `/admin` routes have no authentication.** They provision and
+  suspend tenants platform-wide. The `/panel` UI *is* authenticated; the JSON
+  routes are left open to keep the provisioning example readable. Put them
+  behind operator-only authn/authz, a separate port, or a private network
+  before using this shape.
 - **No migrations.** Tables are created at provisioning time from
   `Base.metadata`. A real deployment should use `TenantMigrationManager` so
   schema changes reach existing tenants — creating tables only works for
   tenants provisioned *after* the model changed.
+- **The operator credential is a shared password.** `OperatorAuth` is where an
+  SSO/OIDC integration belongs; the class exists to show the seam, not to
+  recommend a shared secret.
+- **OAuth is installed but not wired to a provider.** `fastapi-users[oauth]`
+  is a dependency and `httpx-oauth` is available; adding a Google or GitHub
+  client is a few lines in `auth.py`, but it needs real client credentials so
+  it is left out of the runnable default.
 - **No rate limiting.** It needs Redis, so it is off. `build_config()` shows
   the three settings to enable it, including `rate_limit_fail_closed`.
