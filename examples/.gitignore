@@ -1,0 +1,6 @@
+# Each example is a standalone uv project with its own environment.
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
