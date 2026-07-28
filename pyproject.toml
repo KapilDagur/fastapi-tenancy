@@ -176,8 +176,6 @@ select = [
     "D",   # pydocstyle
 ]
 ignore = [
-    "ANN101",  # self annotation not needed
-    "ANN102",  # cls annotation not needed
     "ANN401",  # Allow Any in specific places (SQLAlchemy generics)
     "S101",    # assert used in tests
     "S106",    # hardcoded password in test fixtures

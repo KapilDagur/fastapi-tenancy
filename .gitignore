@@ -103,9 +103,9 @@ site/
 *.sqlite
 *.sqlite3
 
-# uv.lock — not committed for libraries
-# Uncomment next line if you decide not to commit the lock file:
-uv.lock
+# uv.lock IS committed — see docs/contributing/adr/0001-commit-uv-lock.md.
+# It does not constrain consumers (it is ignored when this package is installed
+# as a dependency); it makes the devcontainer and CI reproducible.
 
 # bin
 /bin

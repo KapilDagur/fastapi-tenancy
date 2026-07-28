@@ -1,0 +1,84 @@
+// fastapi-tenancy — canonical development environment.
+//
+// Rebuild after changing this file:  F1 -> "Dev Containers: Rebuild Container"
+//
+// Docker access uses docker-outside-of-docker (DooD): the host daemon is shared,
+// so containers started by Testcontainers are SIBLINGS of this container, not
+// children.  They publish to the host, which is why TESTCONTAINERS_HOST_OVERRIDE
+// points at host.docker.internal.
+{
+  "name": "fastapi-tenancy",
+
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
+
+  // Pinned to an exact feature version — ":1" would float across minor releases.
+  "features": {
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1.10.0": {
+      "moby": true,
+      "installDockerBuildx": true,
+      "dockerDashComposeVersion": "v2"
+    }
+  },
+
+  // Makes host.docker.internal resolve on Linux hosts, where it is not built in.
+  "runArgs": ["--add-host=host.docker.internal:host-gateway"],
+
+  "containerEnv": {
+    // Testcontainers publishes to the host daemon; reach those ports via the host.
+    "TESTCONTAINERS_HOST_OVERRIDE": "host.docker.internal",
+    // Ryuk reaps stray test containers if a run is killed. Leave it on.
+    "TESTCONTAINERS_RYUK_DISABLED": "false",
+    // Keep containers alive between runs for a fast inner loop.
+    "TESTCONTAINERS_REUSE_ENABLE": "true",
+
+    "UV_PROJECT_ENVIRONMENT": "/home/vscode/.venv",
+    "UV_CACHE_DIR": "/home/vscode/.cache/uv",
+    "UV_LINK_MODE": "copy",
+    "UV_PYTHON_DOWNLOADS": "never"
+  },
+
+  // Native-speed volumes for the venv and uv cache; see Dockerfile for why.
+  "mounts": [
+    "source=fastapi-tenancy-venv,target=/home/vscode/.venv,type=volume",
+    "source=fastapi-tenancy-uv-cache,target=/home/vscode/.cache/uv,type=volume"
+  ],
+
+  "remoteUser": "vscode",
+  "updateRemoteUserUID": true,
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-python.mypy-type-checker",
+        "charliermarsh.ruff",
+        "ms-azuretools.vscode-docker",
+        "tamasfe.even-better-toml",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/home/vscode/.venv/bin/python",
+        "python.testing.pytestEnabled": true,
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestArgs": ["tests"],
+        "mypy-type-checker.importStrategy": "fromEnvironment",
+        "ruff.importStrategy": "fromEnvironment",
+        "[python]": {
+          "editor.defaultFormatter": "charliermarsh.ruff",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.organizeImports.ruff": "explicit"
+          }
+        },
+        "files.trimTrailingWhitespace": true,
+        "files.insertFinalNewline": true
+      }
+    }
+  }
+}
