@@ -109,16 +109,20 @@ import fastapi_tenancy
 print(fastapi_tenancy.__version__)  # 0.4.0
 ```
 
-## Docker Compose for local development
+## Local databases for development
 
-A `docker-compose.test.yml` is included in the repository for spinning up
-PostgreSQL 16, MySQL 8, and Redis 7 locally:
+The repository does not ship a Compose file.  Contributors get their service
+containers from the test suite itself, which starts them on demand via
+Testcontainers.  For running *your own* application against a local database,
+start whichever backend you need directly, for example:
 
 ```bash
-docker compose -f docker-compose.test.yml up -d
+docker run -d --name pg -p 5432:5432 \
+  -e POSTGRES_USER=testing -e POSTGRES_PASSWORD=Testing123! \
+  -e POSTGRES_DB=test_db postgres:16-alpine
 ```
 
-This starts:
+Reference versions used by the test suite:
 
 - PostgreSQL 16 on port **5432**
 - MySQL 8.0 on port **3306**

@@ -18,9 +18,19 @@ from fastapi_tenancy.manager import TenancyManager
 from fastapi_tenancy.middleware.tenancy import TenancyMiddleware
 from fastapi_tenancy.storage.database import SQLAlchemyTenantStore
 from fastapi_tenancy.storage.memory import InMemoryTenantStore
+from tests import _services
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
+
+
+def pytest_unconfigure(config: pytest.Config) -> None:
+    """Tear down any testcontainers started during the session.
+
+    Containers are started lazily by :mod:`tests._services`; this stops every
+    one that ran, regardless of which test package triggered it.
+    """
+    _services.stop_all()
 
 
 @pytest.fixture

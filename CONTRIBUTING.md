@@ -80,8 +80,8 @@ Tests are organised into three groups controlled by pytest markers:
 # Unit + integration only (CI default)
 uv run pytest -m "unit or integration" --cov
 
-# All tests including e2e (needs docker-compose)
-docker compose -f docker-compose.test.yml up -d
+# All tests including e2e (needs a running Docker daemon; the suite
+# starts PostgreSQL / MySQL / SQL Server containers on demand)
 uv run pytest --cov -v
 ```
 

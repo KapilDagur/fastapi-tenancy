@@ -12,6 +12,7 @@ from fastapi_tenancy.core.config import TenancyConfig
 from fastapi_tenancy.core.exceptions import ConfigurationError, IsolationError
 from fastapi_tenancy.core.types import IsolationStrategy, Tenant, TenantStatus
 from fastapi_tenancy.isolation.rls import _RLS_GUC, _TENANT_COLUMN, RLSIsolationProvider
+from tests import _services
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -305,7 +306,11 @@ class TestRLSPostgresIntegration:
         assert await pg_rls_provider.verify_isolation(t) is True
 
 
-@pytest.mark.integration
+# Requires a live server: re-marked e2e in ADR 0003.  Under the old TCP
+# probes these skipped silently when no service was up, which hid the fact
+# that they never matched the documented 'integration' contract
+# (SQLite / mocks, no external services).
+@pytest.mark.e2e
 class TestRLSListenerCleanup:
     """FIX: RLS begin listener removed from DBAPI connection before pool return.
 
@@ -325,24 +330,7 @@ class TestRLSListenerCleanup:
 
     def _make_pg_rls_provider(self) -> Any:
         """Return an RLSIsolationProvider backed by a real PG, or skip."""
-        import os  # noqa: PLC0415
-        import socket  # noqa: PLC0415
-
-        pg_url = os.getenv(
-            "POSTGRES_URL",
-            "postgresql+asyncpg://testing:Testing123!@localhost:5432/test_db",
-        )
-        try:
-            host = pg_url.split("@")[1].split("/")[0].split(":")[0]
-            port = (
-                int(pg_url.split("@")[1].split("/")[0].split(":")[1])
-                if ":" in pg_url.split("@")[1].split("/")[0]
-                else 5432
-            )
-            with socket.create_connection((host, port), timeout=1):
-                pass
-        except OSError:
-            pytest.skip("PostgreSQL not reachable — skipping RLS listener test")
+        pg_url = _services.postgres_url()
 
         from fastapi_tenancy.isolation.rls import RLSIsolationProvider  # noqa: PLC0415
 

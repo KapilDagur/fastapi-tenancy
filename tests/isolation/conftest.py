@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-import os
-import socket
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -17,29 +15,23 @@ from fastapi_tenancy.core.types import IsolationStrategy, Tenant, TenantStatus
 from fastapi_tenancy.isolation.database import DatabaseIsolationProvider
 from fastapi_tenancy.isolation.hybrid import HybridIsolationProvider
 from fastapi_tenancy.isolation.schema import SchemaIsolationProvider
+from tests._services import postgres_url
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
 
-_PG_URL = os.getenv(
-    "POSTGRES_URL",
-    "postgresql+asyncpg://testing:Testing123!@localhost:5432/test_db",
-)
-
 _SQLITE_MEM = "sqlite+aiosqlite:///:memory:"
 
 
-def _tcp_ok(host: str, port: int, *, timeout: float = 1.0) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
+@pytest.fixture
+def pg_required() -> None:
+    """Skip the test unless a PostgreSQL testcontainer is available.
 
-
-def _pg_up() -> bool:
-    return _tcp_ok("localhost", 5432)
+    Use on tests that build their own engine inline rather than going through
+    the ``pg_*`` config fixtures.  ``postgres_url()`` starts the shared
+    container on first use, or skips when Docker is absent."""
+    postgres_url()
 
 
 @pytest.fixture
@@ -248,34 +240,26 @@ async def hybrid_provider(
 
 @pytest.fixture
 def pg_schema_config() -> TenancyConfig:
-    if not _pg_up():
-        pytest.skip("PostgreSQL not reachable on localhost:5432")
-    return _schema_config(_PG_URL)
+    return _schema_config(postgres_url())
 
 
 @pytest.fixture
 def pg_rls_config() -> TenancyConfig:
-    if not _pg_up():
-        pytest.skip("PostgreSQL not reachable on localhost:5432")
-    return _rls_config(_PG_URL)
+    return _rls_config(postgres_url())
 
 
 @pytest.fixture
 def pg_database_config() -> TenancyConfig:
-    if not _pg_up():
-        pytest.skip("PostgreSQL not reachable on localhost:5432")
     return _database_config(
-        _PG_URL,
-        template="postgresql+asyncpg://testing:Testing123!@localhost:5432/{database_name}",
+        postgres_url(),
+        template=postgres_url().rsplit("/", 1)[0] + "/{database_name}",
     )
 
 
 @pytest.fixture
 def pg_hybrid_config() -> TenancyConfig:
-    if not _pg_up():
-        pytest.skip("PostgreSQL not reachable on localhost:5432")
     return _hybrid_config(
-        _PG_URL,
+        postgres_url(),
         premium_tenants=["pg-premium-001"],
         premium_strategy=IsolationStrategy.SCHEMA,
         standard_strategy=IsolationStrategy.RLS,

@@ -321,8 +321,7 @@ uv sync --all-extras
 # Unit + integration (no Docker needed)
 uv run pytest -m "not e2e"
 
-# Full suite with real databases
-docker compose -f docker-compose.test.yml up -d
+# Full suite with real databases (containers start on demand; needs Docker)
 uv run pytest
 
 # Code quality

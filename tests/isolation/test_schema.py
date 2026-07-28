@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 import contextlib
 from datetime import UTC, datetime
-import os
-import socket
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock
 import uuid
@@ -20,6 +18,7 @@ from fastapi_tenancy.core.exceptions import IsolationError
 from fastapi_tenancy.core.types import IsolationStrategy, Tenant, TenantStatus
 from fastapi_tenancy.isolation.schema import SchemaIsolationProvider
 from fastapi_tenancy.utils.db_compat import DbDialect
+from tests import _services
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -513,7 +512,11 @@ class TestPrefixSessionMultiTransaction:
             await provider.close()
 
 
-@pytest.mark.integration
+# Requires a live server: re-marked e2e in ADR 0003.  Under the old TCP
+# probes these skipped silently when no service was up, which hid the fact
+# that they never matched the documented 'integration' contract
+# (SQLite / mocks, no external services).
+@pytest.mark.e2e
 class TestSearchPathBeginEventListener:
     """FIX: SET LOCAL search_path must be re-applied after each commit on PostgreSQL."""
 
@@ -523,15 +526,7 @@ class TestSearchPathBeginEventListener:
         simple_metadata: sa.MetaData,
     ) -> None:
 
-        pg_url = os.getenv(
-            "POSTGRES_URL",
-            "postgresql+asyncpg://testing:Testing123!@localhost:5432/test_db",
-        )
-        try:
-            with socket.create_connection(("localhost", 5432), timeout=1.0):
-                pass
-        except OSError:
-            pytest.skip("PostgreSQL not reachable")
+        pg_url = _services.postgres_url()
 
         provider = SchemaIsolationProvider(_sqla_cfg(pg_url))
         tenant = make_tenant(identifier=f"sp-tenant-{uuid.uuid4().hex[:8]}")
@@ -560,15 +555,7 @@ class TestSearchPathBeginEventListener:
         simple_metadata: sa.MetaData,
     ) -> None:
 
-        pg_url = os.getenv(
-            "POSTGRES_URL",
-            "postgresql+asyncpg://testing:Testing123!@localhost:5432/test_db",
-        )
-        try:
-            with socket.create_connection(("localhost", 5432), timeout=1.0):
-                pass
-        except OSError:
-            pytest.skip("PostgreSQL not reachable")
+        pg_url = _services.postgres_url()
 
         provider = SchemaIsolationProvider(_sqla_cfg(pg_url))
         uid = uuid.uuid4().hex[:8]
@@ -596,7 +583,11 @@ class TestSearchPathBeginEventListener:
             await provider.close()
 
 
-@pytest.mark.integration
+# Requires a live server: re-marked e2e in ADR 0003.  Under the old TCP
+# probes these skipped silently when no service was up, which hid the fact
+# that they never matched the documented 'integration' contract
+# (SQLite / mocks, no external services).
+@pytest.mark.e2e
 class TestPostgresSchemaLifecycle:
     """Full create → insert → read → destroy lifecycle on a real PostgreSQL instance."""
 
@@ -606,15 +597,7 @@ class TestPostgresSchemaLifecycle:
         simple_metadata: sa.MetaData,
     ) -> None:
 
-        pg_url = os.getenv(
-            "POSTGRES_URL",
-            "postgresql+asyncpg://testing:Testing123!@localhost:5432/test_db",
-        )
-        try:
-            with socket.create_connection(("localhost", 5432), timeout=1.0):
-                pass
-        except OSError:
-            pytest.skip("PostgreSQL not reachable")
+        pg_url = _services.postgres_url()
 
         provider = SchemaIsolationProvider(_sqla_cfg(pg_url))
         tenant = make_tenant(identifier=f"lifecycle-{uuid.uuid4().hex[:8]}")
@@ -646,15 +629,7 @@ class TestPostgresSchemaLifecycle:
         simple_metadata: sa.MetaData,
     ) -> None:
 
-        pg_url = os.getenv(
-            "POSTGRES_URL",
-            "postgresql+asyncpg://testing:Testing123!@localhost:5432/test_db",
-        )
-        try:
-            with socket.create_connection(("localhost", 5432), timeout=1.0):
-                pass
-        except OSError:
-            pytest.skip("PostgreSQL not reachable")
+        pg_url = _services.postgres_url()
 
         provider = SchemaIsolationProvider(_sqla_cfg(pg_url))
         tenant = make_tenant(identifier=f"idempotent-{uuid.uuid4().hex[:8]}")
@@ -669,7 +644,11 @@ class TestPostgresSchemaLifecycle:
             await provider.close()
 
 
-@pytest.mark.integration
+# Requires a live server: re-marked e2e in ADR 0003.  Under the old TCP
+# probes these skipped silently when no service was up, which hid the fact
+# that they never matched the documented 'integration' contract
+# (SQLite / mocks, no external services).
+@pytest.mark.e2e
 class TestMSSQLSchemaIsolation:
     """FIX: MSSQL schema isolation must use schema_translate_map, not ALTER USER."""
 
@@ -680,16 +659,7 @@ class TestMSSQLSchemaIsolation:
     ) -> None:
 
         pytest.importorskip("aioodbc", reason="aioodbc not installed")
-        mssql_url = os.getenv(
-            "MSSQL_URL",
-            "mssql+aioodbc://sa:Testing123!@localhost:1433/test_db"
-            "?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes",
-        )
-        try:
-            with socket.create_connection(("localhost", 1433), timeout=1.0):
-                pass
-        except OSError:
-            pytest.skip("SQL Server not reachable on localhost:1433")
+        mssql_url = _services.mssql_url()
 
         provider = SchemaIsolationProvider(_sqla_cfg(mssql_url))
         tenant = make_tenant(identifier=f"mssql-{uuid.uuid4().hex[:6]}")
@@ -722,16 +692,7 @@ class TestMSSQLSchemaIsolation:
         from unittest.mock import patch  # noqa: PLC0415
 
         pytest.importorskip("aioodbc", reason="aioodbc not installed")
-        mssql_url = os.getenv(
-            "MSSQL_URL",
-            "mssql+aioodbc://sa:Testing123!@localhost:1433/test_db"
-            "?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes",
-        )
-        try:
-            with socket.create_connection(("localhost", 1433), timeout=1.0):
-                pass
-        except OSError:
-            pytest.skip("SQL Server not reachable on localhost:1433")
+        mssql_url = _services.mssql_url()
 
         provider = SchemaIsolationProvider(_sqla_cfg(mssql_url))
         assert provider.dialect == DbDialect.MSSQL

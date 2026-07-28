@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-import os
-import socket
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -16,48 +14,13 @@ from fastapi_tenancy.core.types import IsolationStrategy, Tenant, TenantStatus
 from fastapi_tenancy.storage.database import SQLAlchemyTenantStore
 from fastapi_tenancy.storage.memory import InMemoryTenantStore
 from fastapi_tenancy.storage.redis import RedisTenantStore
+from tests._services import mssql_url, mysql_url, postgres_url
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
 
 _SQLITE_MEM: str = "sqlite+aiosqlite:///:memory:"
-
-_PG_URL: str = (
-    os.getenv("POSTGRES_URL")
-    or os.getenv("TENANCY_DATABASE_URL")
-    or "postgresql+asyncpg://testing:Testing123!@localhost:5432/test_db"
-)
-_MYSQL_URL: str = os.getenv(
-    "MYSQL_URL",
-    "mysql+aiomysql://testing:Testing123!@localhost:3306/test_db",
-)
-_MSSQL_URL: str = os.getenv(
-    "MSSQL_URL",
-    "mssql+aioodbc://sa:Testing123!@localhost:1433/test_db"
-    "?driver=ODBC+Driver+18+for+SQL+Server&TrustServerCertificate=yes",
-)
-
-
-def _tcp_ok(host: str, port: int, *, timeout: float = 1.0) -> bool:
-    """Return True when a TCP connection to *host*:*port* succeeds within *timeout* s."""
-    try:
-        with socket.create_connection((host, port), timeout=timeout):
-            return True
-    except OSError:
-        return False
-
-
-def _pg_up() -> bool:
-    return _tcp_ok("localhost", 5432)
-
-
-def _mysql_up() -> bool:
-    return _tcp_ok("localhost", 3306)
-
-
-def _mssql_up() -> bool:
-    return _tcp_ok("localhost", 1433)
 
 
 @pytest.fixture
@@ -131,11 +94,8 @@ async def postgres_store() -> AsyncIterator[SQLAlchemyTenantStore]:
     Creates a fresh ``tenants`` table for each test via ``initialize()`` and
     truncates it in teardown to keep tests independent.
     """
-    if not _pg_up():
-        pytest.skip("PostgreSQL not reachable on localhost:5432")
-
     store = SQLAlchemyTenantStore(
-        _PG_URL,
+        postgres_url(),
         pool_size=2,
         max_overflow=2,
         pool_pre_ping=True,
@@ -160,11 +120,8 @@ async def mysql_store() -> AsyncIterator[SQLAlchemyTenantStore]:
 
     Marks: ``pytest.mark.e2e``.
     """
-    if not _mysql_up():
-        pytest.skip("MySQL not reachable on localhost:3306")
-
     store = SQLAlchemyTenantStore(
-        _MYSQL_URL,
+        mysql_url(),
         pool_size=2,
         max_overflow=2,
         pool_pre_ping=True,
@@ -187,11 +144,8 @@ async def mssql_store() -> AsyncIterator[SQLAlchemyTenantStore]:
 
     Marks: ``pytest.mark.e2e``.
     """
-    if not _mssql_up():
-        pytest.skip("SQL Server not reachable on localhost:1433")
-
     store = SQLAlchemyTenantStore(
-        _MSSQL_URL,
+        mssql_url(),
         pool_size=2,
         max_overflow=2,
         pool_pre_ping=True,
@@ -216,7 +170,7 @@ async def mssql_store() -> AsyncIterator[SQLAlchemyTenantStore]:
         pytest.param("mssql", id="mssql", marks=pytest.mark.e2e),
     ]
 )
-async def any_sqla_store(  # noqa: PLR0912, PLR0915
+async def any_sqla_store(  # noqa: PLR0915
     request: pytest.FixtureRequest,
 ) -> AsyncIterator[SQLAlchemyTenantStore]:
     """Parametrised fixture that yields each available SQLAlchemy store.
@@ -238,9 +192,7 @@ async def any_sqla_store(  # noqa: PLR0912, PLR0915
             await store.close()
 
     elif backend == "postgres":
-        if not _pg_up():
-            pytest.skip("PostgreSQL not reachable on localhost:5432")
-        store = SQLAlchemyTenantStore(_PG_URL, pool_size=2, max_overflow=2)
+        store = SQLAlchemyTenantStore(postgres_url(), pool_size=2, max_overflow=2)
         await store.initialize()
         try:
             yield store
@@ -253,9 +205,7 @@ async def any_sqla_store(  # noqa: PLR0912, PLR0915
             await store.close()
 
     elif backend == "mysql":
-        if not _mysql_up():
-            pytest.skip("MySQL not reachable on localhost:3306")
-        store = SQLAlchemyTenantStore(_MYSQL_URL, pool_size=2, max_overflow=2)
+        store = SQLAlchemyTenantStore(mysql_url(), pool_size=2, max_overflow=2)
         await store.initialize()
         try:
             yield store
@@ -268,9 +218,7 @@ async def any_sqla_store(  # noqa: PLR0912, PLR0915
             await store.close()
 
     elif backend == "mssql":
-        if not _mssql_up():
-            pytest.skip("SQL Server not reachable on localhost:1433")
-        store = SQLAlchemyTenantStore(_MSSQL_URL, pool_size=2, max_overflow=2)
+        store = SQLAlchemyTenantStore(mssql_url(), pool_size=2, max_overflow=2)
         await store.initialize()
         try:
             yield store

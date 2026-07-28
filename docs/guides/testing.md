@@ -137,11 +137,8 @@ async def integration_store():
 ```
 
 ```bash
-# Start test infrastructure
-docker compose -f docker-compose.test.yml up -d
-
-# Run integration tests
-pytest tests/integration/ -m integration
+# Service containers start on demand - just make sure Docker is running
+pytest -m integration
 ```
 
 ## Coverage

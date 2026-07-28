@@ -207,19 +207,6 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
 
-    services:
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-
-    env:
-      REDIS_URL: "redis://localhost:6379/0"
-
     steps:
       - uses: actions/checkout@v4
 
@@ -237,7 +224,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-extras --locked
 
-      - name: Run integration tests (SQLite + Redis)
+      - name: Run integration tests (SQLite + in-process fakes)
         run: |
           uv run pytest tests/ \
             -m "not e2e" \
@@ -270,33 +257,10 @@ jobs:
       matrix:
         pg-version: ["15", "16"]
 
-    services:
-      postgres:
-        image: postgres:${{ matrix.pg-version }}-alpine
-        env:
-          POSTGRES_USER: testing
-          POSTGRES_PASSWORD: Testing123!
-          POSTGRES_DB: test_db
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U testing"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 15
-
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 3s
-          --health-retries 10
-
     env:
-      POSTGRES_URL: "postgresql+asyncpg://testing:Testing123!@localhost:5432/test_db"
-      TENANCY_DATABASE_URL: "postgresql+asyncpg://testing:Testing123!@localhost:5432/test_db"
-      REDIS_URL: "redis://localhost:6379/0"
+      # Drives the version matrix.  tests/_services.py starts the container;
+      # this override replaces the digest-pinned default (ADR 0003).
+      FT_TEST_POSTGRES_IMAGE: "postgres:${{ matrix.pg-version }}-alpine"
 
     steps:
       - uses: actions/checkout@v4
@@ -324,6 +288,7 @@ jobs:
             tests/isolation/test_rls.py \
             tests/isolation/test_hybrid.py \
             -m "e2e" \
+            -k "not MSSQL" \
             --tb=short -v \
             --cov=fastapi_tenancy \
             --cov-report=xml:coverage-e2e-pg${{ matrix.pg-version }}.xml
@@ -349,23 +314,8 @@ jobs:
       matrix:
         mysql-version: ["8.0"]
 
-    services:
-      mysql:
-        image: mysql:${{ matrix.mysql-version }}
-        env:
-          MYSQL_ROOT_PASSWORD: Testing123!
-          MYSQL_USER: testing
-          MYSQL_PASSWORD: Testing123!
-          MYSQL_DATABASE: test_db
-        ports: ["3306:3306"]
-        options: >-
-          --health-cmd "mysqladmin ping -h localhost -u testing --password=Testing123!"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 15
-
     env:
-      MYSQL_URL: "mysql+aiomysql://testing:Testing123!@localhost:3306/test_db"
+      FT_TEST_MYSQL_IMAGE: "mysql:${{ matrix.mysql-version }}"
 
     steps:
       - uses: actions/checkout@v4

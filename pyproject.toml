@@ -72,6 +72,8 @@ dev = [
     "pytest-cov>=5.0.0,<8.0.0",
     "anyio[trio]>=4.0.0",
     "httpx>=0.27.0,<0.29.0",
+    # Ephemeral service containers for integration / e2e tests.
+    "testcontainers>=4.15.0,<5.0.0",
     # Code quality - constrained for consistent linting
     "ruff>=0.4.0,<0.16.0",               # Allow updates but limit scope
     "mypy>=1.10.0,<2.0.0",
@@ -147,6 +149,13 @@ exclude                = ["docs/", "examples/"]
 module = ["fastapi_tenancy.*"]
 # Allow Any in a small number of SQLAlchemy generic query helpers.
 warn_return_any = false
+
+[[tool.mypy.overrides]]
+# pyodbc ships no type stubs and has no maintained types- package that resolves
+# across our full requires-python range.  It is used only by the SQL Server
+# readiness probe in tests/_services.py.
+module = ["pyodbc"]
+ignore_missing_imports = true
 
 # Ruff — linter + formatter
 [tool.ruff]

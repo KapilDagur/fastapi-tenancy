@@ -26,11 +26,12 @@ make dev
 
 ## Start the test infrastructure
 
-```bash
-docker compose -f docker-compose.test.yml up -d
-```
+Nothing to start by hand: the test suite provisions PostgreSQL, MySQL, and
+SQL Server containers on demand via Testcontainers, on random free ports, and
+stops them when the session ends.  Only a running Docker daemon is required.
 
-This starts PostgreSQL 16 (port 5432), MySQL 8.0 (port 3306), and Redis 7 (port 6379).
+Tests that need a backend skip cleanly when Docker is unavailable, so a
+unit-only run works without it.
 
 ## Verify the setup
 

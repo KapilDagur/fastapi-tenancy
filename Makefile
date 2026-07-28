@@ -12,33 +12,32 @@
 #   make check          lint + type + security							 #
 #																		 #
 #   make test           Unit tests only									 #
-#   make test-int       Integration tests (starts Docker automatically)  #
-#   make test-e2e       End-to-end tests (starts Docker automatically)   #
-#   make test-all       Full suite (starts Docker automatically)		 #
+#   make test-int       Integration tests (containers start on demand)   #
+#   make test-e2e       End-to-end tests (containers start on demand)    #
+#   make test-all       Full suite (containers start on demand)			 #
 #   make coverage       Full suite → HTML report in htmlcov/			 #
 #																		 #
-#   make docker-up      Start PostgreSQL 16 + MySQL 8 + Redis 7			 #
-#   make docker-down    Tear down all test containers + volumes			 #
 #																		 #
 #   make build          Build wheel + sdist								 #
 #   make clean          Remove all build / test artefacts				 #
+#																 #
+#   Service containers are started on demand by the suite via		 #
+#   Testcontainers (ADR 0003).  Nothing to start or tear down by	 #
+#   hand - Docker just has to be running.							 #
 ##########################################################################
 
 .PHONY: dev lint fmt type security check \
         test test-int test-e2e test-all coverage \
-        docker-up docker-down \
         build clean
 
 ##########
 # Config #
 ##########
-COMPOSE_FILE  := docker-compose.test.yml
 PYTEST        := python -m pytest
 COV_FLAGS     := --cov=fastapi_tenancy \
                  --cov-report=term-missing \
                  --cov-report=html:htmlcov \
                  --cov-report=xml:coverage.xml
-WAIT_SECS     := 20
 PYTHON_VER	  := 3.12
 
 
@@ -46,7 +45,7 @@ PYTHON_VER	  := 3.12
 # Development setup #
 #####################
 dev:
-	uv sync --all-extras --python $(PYTHON_VER)
+	uv sync --all-extras --locked --python $(PYTHON_VER)
 
 ###################
 # Static analysis #
@@ -68,42 +67,22 @@ security:
 
 check: lint type security
 
-##########
-# Docker #
-##########
-docker-up:
-	@echo "Checking if test services are running..."
-	@if [ -z "$$(docker compose -f $(COMPOSE_FILE) ps -q)" ]; then \
-		echo "Services not running. Starting them..."; \
-		docker compose -f $(COMPOSE_FILE) up -d; \
-		echo "Waiting $(WAIT_SECS)s for services to become healthy…"; \
-		sleep $(WAIT_SECS); \
-	else \
-		echo "Services already running. Skipping startup."; \
-	fi
-	@docker compose -f $(COMPOSE_FILE) ps
-	@echo
-	@echo
-
-docker-down:
-	docker compose -f $(COMPOSE_FILE) down -v --remove-orphans
-
 #########
 # Tests #
 #########
 test:
 	uv run $(PYTEST) -m unit tests/ --tb=short -v
 
-test-int: docker-up
+test-int:
 	uv run $(PYTEST) -m integration tests/ --tb=short -v $(COV_FLAGS)
 
-test-e2e: docker-up
+test-e2e:
 	uv run $(PYTEST) -m e2e tests/ --tb=short -v $(COV_FLAGS)
 
-test-all: docker-up
+test-all:
 	uv run $(PYTEST) tests/ --tb=short -v $(COV_FLAGS) 2>&1 | tee test-results.txt
 
-coverage: docker-up
+coverage:
 	uv run $(PYTEST) tests/ --tb=short $(COV_FLAGS)
 	@echo ""
 	@echo "HTML report → htmlcov/index.html"

@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-import os
-import socket
 from typing import TYPE_CHECKING
 import uuid
 
@@ -15,17 +13,10 @@ from fastapi_tenancy.core.exceptions import TenancyError, TenantNotFoundError
 from fastapi_tenancy.core.types import Tenant, TenantStatus
 from fastapi_tenancy.storage.database import SQLAlchemyTenantStore
 from fastapi_tenancy.utils.db_compat import DbDialect
+from tests import _services
 
 if TYPE_CHECKING:
     from collections.abc import Callable
-
-
-def _pg_up() -> bool:
-    try:
-        with socket.create_connection(("localhost", 5432), timeout=1.0):
-            return True
-    except OSError:
-        return False
 
 
 @pytest.mark.integration
@@ -219,12 +210,7 @@ class TestSearchDialect:
 
     @pytest.mark.e2e
     async def test_search_postgres_ilike(self, make_tenant: Callable[..., Tenant]) -> None:
-        if not _pg_up():
-            pytest.skip("PostgreSQL not reachable")
-        pg_url = os.getenv(
-            "POSTGRES_URL",
-            "postgresql+asyncpg://testing:Testing123!@localhost:5432/test_db",
-        )
+        pg_url = _services.postgres_url()
         store = SQLAlchemyTenantStore(pg_url, pool_size=2, max_overflow=2)
         await store.initialize()
         try:
