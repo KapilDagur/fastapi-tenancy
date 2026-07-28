@@ -784,40 +784,68 @@ class TenancyManager:
     # and allowing an extra request to slip through.  Using a UUID-suffixed
     # member guarantees uniqueness regardless of timestamp resolution.
     #
+    # Fix — the deny branch returned the pre-state count:
+    # `if count >= limit then return count end` combined with the host-side
+    # check `count > limit` meant the limiter never denied anything.  See the
+    # comment on that branch below.  Every existing test mocked `eval`'s
+    # return value, so the script itself never ran and the bypass was
+    # invisible to the suite; it is now covered against a real Redis in
+    # tests/test_rate_limit_lua.py.
+    #
+    # Fix — Redis-server clock as the time source:
+    # Earlier versions passed `time.time()` from the API host as the ZADD
+    # score and computed `window_start = now - window` host-side.  Per-host
+    # clock skew (NTP steps, VM clock drift) corrupted the window: backward
+    # jumps left stale members counting toward the limit, forward jumps
+    # evicted live members early and let extra requests burst through.  The
+    # script now reads Redis's own clock, so every API host targeting one
+    # Redis instance observes a single consistent time source.
+    #
     # Script arguments:
     #   KEYS[1]  — sorted-set key for this tenant
-    #   ARGV[1]  — current timestamp (float, seconds) — used as ZADD score
-    #   ARGV[2]  — window start timestamp (float, seconds) — eviction boundary
-    #   ARGV[3]  — rate limit (integer)
-    #   ARGV[4]  — window size in seconds (integer, for EXPIRE)
-    #   ARGV[5]  — unique request identifier (timestamp:uuid4 string) — member
+    #   ARGV[1]  — rate limit (integer)
+    #   ARGV[2]  — window size in seconds (integer, for ZREMRANGE + EXPIRE)
+    #   ARGV[3]  — unique request identifier (uuid4 hex) — disambiguates
+    #              concurrent requests landing on the same Redis tick
     #
     # Returns: the request count AFTER this request (1 = first allowed, >limit = denied).
-    _RATE_LIMIT_LUA = """local key        = KEYS[1]
-local now        = tonumber(ARGV[1])
-local win_start  = tonumber(ARGV[2])
-local limit      = tonumber(ARGV[3])
-local window     = tonumber(ARGV[4])
-local member     = ARGV[5]
+    _RATE_LIMIT_LUA = """local key       = KEYS[1]
+local limit     = tonumber(ARGV[1])
+local window    = tonumber(ARGV[2])
+local member_id = ARGV[3]
 
--- 1. Evict entries older than the window.
+-- 1. Read time from the Redis server so all API hosts agree on "now".
+--    TIME returns {seconds, microseconds}; combine into seconds-as-float.
+local t         = redis.call('TIME')
+local now       = tonumber(t[1]) + tonumber(t[2]) / 1000000
+local win_start = now - window
+local member    = string.format('%.6f:%s', now, member_id)
+
+-- 2. Evict entries older than the window.
 redis.call('ZREMRANGEBYSCORE', key, '-inf', win_start)
 
--- 2. Count requests still inside the window.
+-- 3. Count requests still inside the window.
 local count = redis.call('ZCARD', key)
 
--- 3. If already at (or over) the limit, deny without adding.
+-- 4. If already at (or over) the limit, deny without adding.
+--    Return ``count + 1`` (the would-be post-state count) so the host-side
+--    check ``count > limit`` fires.  Returning the pre-state ``count`` here
+--    is not an off-by-one but a total bypass: with limit=N and N requests
+--    already in the window, ``count == N`` and ``N > N`` is False, so the
+--    caller is allowed through — and because this branch skips the ZADD the
+--    set never grows, so every subsequent request is allowed too.  The
+--    limiter stopped limiting at exactly the point it should start denying.
 if count >= limit then
-    return count
+    return count + 1
 end
 
--- 4. Add this request with a unique member and refresh the key TTL.
+-- 5. Add this request with a unique member and refresh the key TTL.
 --    score=now for time-based eviction; member=unique so concurrent requests
---    at the same timestamp each produce a distinct sorted-set entry.
+--    at the same Redis tick each produce a distinct sorted-set entry.
 redis.call('ZADD', key, now, member)
 redis.call('EXPIRE', key, window)
 
--- 5. Return the new count (will be <= limit).
+-- 6. Return the new count (will be <= limit).
 return count + 1
 """
 
@@ -833,9 +861,12 @@ return count + 1
         The Lua script is atomic — Redis executes it without interleaving any
         other commands — so the check-and-increment is always consistent.
 
-        Each call generates a unique member string (``"{now}:{uuid4}"``) so
-        that two requests arriving within the same microsecond each add a
-        distinct sorted-set entry rather than overwriting each other.
+        The window timestamp is read from **Redis's own clock** inside the
+        script, not from this host, so API hosts with skewed clocks cannot
+        corrupt each other's window. Each call passes a uuid the script
+        combines with that timestamp into a unique sorted-set member, so two
+        requests landing on the same Redis tick each add a distinct entry
+        rather than overwriting each other.
 
         Args:
             tenant: The tenant whose rate limit to check.
@@ -846,29 +877,29 @@ return count + 1
         if not self._rate_limiting_enabled or self._rate_limiter is None:
             return
 
-        import time  # noqa: PLC0415
         import uuid  # noqa: PLC0415
 
         key = f"tenancy:ratelimit:{tenant.id}"
         window = self.config.rate_limit_window_seconds
         limit = self.config.rate_limit_per_minute
-        now = time.time()
-        window_start = now - window
-        # Unique member: timestamp prefix for human readability, uuid4 suffix
-        # to guarantee per-request uniqueness within the same microsecond.
-        member = f"{now}:{uuid.uuid4().hex}"
+        # No host wall-clock value is sent any more — the script reads Redis
+        # TIME.  This uuid only disambiguates concurrent calls that land on
+        # the same tick.
+        member_id = uuid.uuid4().hex
 
         try:
-            count: int = await self._rate_limiter.eval(
+            raw_count = await self._rate_limiter.eval(
                 self._RATE_LIMIT_LUA,
                 1,  # number of KEYS
                 key,
-                now,
-                window_start,
                 limit,
                 window,
-                member,
+                member_id,
             )
+            # Be explicit about the int conversion so a future change to the
+            # client's decode_responses setting cannot silently turn this
+            # comparison into a str/int mismatch.
+            count: int = int(raw_count)
             if count > limit:
                 raise RateLimitExceededError(  # noqa: TRY301
                     tenant_id=tenant.id,

@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Security & reliability fixes
 
-> Sixteen targeted fixes addressing concurrency safety, WebSocket error handling,
-> JWT security hardening, connection-pool lifecycle, per-tenant database naming,
-> secret redaction, cache correctness, and observability gaps.
+> Eighteen targeted fixes addressing rate-limit enforcement, concurrency safety,
+> WebSocket error handling, JWT security hardening, connection-pool lifecycle,
+> per-tenant database naming, secret redaction, cache correctness, and
+> observability gaps.
 
 ### Added
 
@@ -298,6 +299,45 @@ traffic. A cache that was never read could still report a healthy hit rate.
 
 Fix: new `TenantCache.peek()` returns the entry without touching counters or
 LRU order, and the proxy's bookkeeping read uses it.
+
+**FIX 17 — Rate limiting never denied a request (`manager.py`) ** SECURITY **
+
+The sliding-window Lua script's deny branch returned the **pre-state** count:
+
+```lua
+if count >= limit then
+    return count      -- with limit=N and N in the window, returns N
+end
+```
+
+while the host raises only on `count > limit`. With `limit=N` and N requests
+already in the window, `N > N` is `False`, so the request was **allowed**. That
+branch also skips the `ZADD`, so the sorted set never grew past N and every
+subsequent request took the same path — the limiter stopped limiting at exactly
+the point it should have started denying. Measured against a real Redis:
+`limit=5` admitted **15 of 15** requests.
+
+This was invisible to the test suite because every rate-limit test mocked
+`redis.eval` and asserted on the host-side handling of a hard-coded return
+value, so the script itself never executed. `tests/test_rate_limit_lua.py` now
+runs it against a real Redis server (`redis_url()`, previously unused).
+
+Fix: the deny branch returns `count + 1` — the would-be post-state count — so
+the host-side comparison fires.
+
+**FIX 18 — Rate-limit window used the API host's clock (`manager.py`)**
+
+The script received `time.time()` from the calling host as the `ZADD` score and
+the eviction boundary. With several API hosts against one Redis, per-host clock
+skew (NTP steps, VM clock drift) corrupted the shared window: backward jumps
+left stale members counting toward the limit, forward jumps evicted live
+members early and let extra requests burst through.
+
+Fix: the script calls Redis `TIME` and computes both the score and the window
+boundary server-side, so every host observes one consistent clock. The host now
+sends only a uuid, which the script combines with the server timestamp into the
+unique sorted-set member. The `eval()` argument list shrank from 5 ARGVs to 3;
+this is internal, and `check_rate_limit()`'s signature is unchanged.
 
 ### Changed
 

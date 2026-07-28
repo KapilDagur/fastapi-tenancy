@@ -948,8 +948,8 @@ class TestRateLimitLuaUniqueMember:
             "Lua script still uses 'now' as both score and member — collision risk"
         )
 
-    def test_check_rate_limit_passes_6_args_to_eval(self) -> None:
-        """eval() must receive 6 positional args: KEYS[1] + ARGV[1..5]."""
+    def test_check_rate_limit_passes_the_expected_eval_args(self) -> None:
+        """eval() receives script + numkeys + KEYS[1] + ARGV[1..3] = 6 args."""
         m = TenancyManager(_manager_cfg(), InMemoryTenantStore())
         m._rate_limiting_enabled = True
 
@@ -968,24 +968,65 @@ class TestRateLimitLuaUniqueMember:
         tenant = _make_tenant()
         _asyncio.get_event_loop().run_until_complete(m.check_rate_limit(tenant))
 
-        # args layout: (lua_script, num_keys, key, now, window_start, limit, window, member)
-        # That is 8 positional arguments total (script + 7 ARGV/KEYS args).
-        assert len(captured_args) == 8, (
-            f"Expected 8 eval() args (script + 1 KEY + 5 ARGVs), got {len(captured_args)}"
+        # Positional layout is script, num_keys, key, limit, window, member_id.
+        assert len(captured_args) == 6, (
+            f"Expected 6 eval() args (script + 1 KEY + 3 ARGVs), got {len(captured_args)}"
         )
-        member_arg = captured_args[-1]
-        assert isinstance(member_arg, str), "member must be a string"
-        assert ":" in member_arg, f"member must be 'timestamp:uuid4' format, got {member_arg!r}"
+        member_id = captured_args[-1]
+        assert isinstance(member_id, str)
+        # The script composes "<redis_time>:<member_id>" itself, so the host
+        # sends only the uuid — no colon-joined timestamp any more.
+        assert ":" not in member_id
+
+    def test_no_host_wall_clock_is_sent_to_redis(self) -> None:
+        """The window must be timestamped by Redis, not by this host.
+
+        Host clock skew across API pods previously corrupted the shared
+        window: backward jumps kept stale members counting toward the limit,
+        forward jumps evicted live ones early. Passing any host time value
+        here would reintroduce that.
+        """
+        m = TenancyManager(_manager_cfg(), InMemoryTenantStore())
+        m._rate_limiting_enabled = True
+
+        captured_args: list[Any] = []
+
+        async def _fake_eval(*args: Any, **kwargs: Any) -> int:
+            captured_args.extend(args)
+            return 1
+
+        fake_redis = MagicMock()
+        fake_redis.eval = _fake_eval
+        m._rate_limiter = fake_redis
+
+        import asyncio as _asyncio  # noqa: PLC0415
+        import time as _time  # noqa: PLC0415
+
+        now = _time.time()
+        _asyncio.get_event_loop().run_until_complete(m.check_rate_limit(_make_tenant()))
+
+        # No argument may look like a current unix timestamp.
+        for arg in captured_args:
+            if isinstance(arg, (int, float)) and not isinstance(arg, bool):
+                assert abs(float(arg) - now) > 1000, (
+                    f"eval() arg {arg!r} looks like a host wall-clock value"
+                )
+        assert "redis.call('TIME')" in m._RATE_LIMIT_LUA
 
     def test_unique_members_across_calls(self) -> None:
-        """Two consecutive calls must produce different member strings."""
+        """Two consecutive calls must produce different member ids.
+
+        Uniqueness is what stops a second ZADD from overwriting the first
+        entry when both land on the same Redis tick, which would under-count
+        the window.
+        """
         m = TenancyManager(_manager_cfg(), InMemoryTenantStore())
         m._rate_limiting_enabled = True
 
         members: list[str] = []
 
         async def _capture_eval(*args: Any, **kwargs: Any) -> int:
-            members.append(args[-1])  # last arg is always the member
+            members.append(args[-1])  # last arg is always the member id
             return 1
 
         fake_redis = MagicMock()
