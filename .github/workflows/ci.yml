@@ -354,22 +354,23 @@ jobs:
   coverage:
     name: "Upload coverage to Codecov"
     runs-on: ubuntu-latest
-    needs: [unit, integration]
+    # e2e is included so that PostgreSQL-only, MySQL-only and Lua paths are not
+    # reported as uncovered.  They are exercised only by the e2e jobs, and
+    # omitting those reports understated patch coverage by ~4 points -- enough
+    # to fail the Codecov patch status on a large change even when the new code
+    # was in fact tested.
+    needs: [unit, integration, e2e-postgres, e2e-mysql]
+    # e2e is skipped on unlabelled PRs, so require only unit+integration to have
+    # succeeded and treat the e2e reports as best-effort.
     if: always() && needs.unit.result == 'success' && needs.integration.result == 'success'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download unit coverage
+      - name: Download coverage reports
         uses: actions/download-artifact@v4
         with:
-          name: coverage-unit
-          path: coverage-reports/
-        continue-on-error: true
-
-      - name: Download integration coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: coverage-integration
+          pattern: coverage-*
+          merge-multiple: true
           path: coverage-reports/
         continue-on-error: true
 
@@ -380,7 +381,10 @@ jobs:
         uses: codecov/codecov-action@v5
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          files: ./coverage-reports/coverage-unit-py3.12.xml,./coverage-reports/coverage-integration-py3.12.xml
+          # Directory rather than an explicit list: the e2e matrix filenames
+          # carry their backend version, so an enumerated list silently drops a
+          # report whenever the matrix changes.
+          directory: ./coverage-reports/
           flags: combined
           name: fastapi-tenancy
           fail_ci_if_error: false

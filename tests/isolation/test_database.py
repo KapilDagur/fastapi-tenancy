@@ -799,3 +799,97 @@ class TestCreationLocksWeakValueDictionary:
         provider = DatabaseIsolationProvider(_db_cfg())
         assert isinstance(provider._creation_locks, weakref.WeakValueDictionary)
         await provider.close()
+
+
+@pytest.mark.unit
+class TestDisposalEdgeCases:
+    """The two disposal paths that only run when something has gone wrong."""
+
+    async def test_schedule_disposal_outside_a_loop_still_disposes(self) -> None:
+        """Eviction from sync code must close the pool rather than leak it.
+
+        ``asyncio.create_task`` needs a running loop.  Rather than raise — and
+        lose the pool — the provider falls back to a blocking dispose and warns
+        that it happened.
+        """
+        p = DatabaseIsolationProvider(_db_cfg(), master_engine=MagicMock())
+        engine = MagicMock()
+        engine.dispose = AsyncMock()
+
+        # Run the sync call in a worker thread, which has no running loop.
+        await asyncio.to_thread(p._schedule_disposal, engine)
+
+        engine.dispose.assert_awaited_once()
+        assert not p._pending_disposals
+
+    async def test_schedule_disposal_outside_a_loop_warns(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The fallback is a misuse path, so it must be visible in logs."""
+        import logging  # noqa: PLC0415
+
+        p = DatabaseIsolationProvider(_db_cfg(), master_engine=MagicMock())
+        engine = MagicMock()
+        engine.dispose = AsyncMock()
+
+        with caplog.at_level(logging.WARNING, logger="fastapi_tenancy.isolation.database"):
+            await asyncio.to_thread(p._schedule_disposal, engine)
+
+        assert any("running event loop" in r.message for r in caplog.records)
+
+    async def test_background_dispose_failure_is_swallowed(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A failed dispose leaks a pool but must not reach the user request."""
+        import logging  # noqa: PLC0415
+
+        p = DatabaseIsolationProvider(_db_cfg(), master_engine=MagicMock())
+        engine = MagicMock()
+        engine.dispose = AsyncMock(side_effect=RuntimeError("pool already closed"))
+
+        with caplog.at_level(logging.WARNING, logger="fastapi_tenancy.isolation.database"):
+            p._schedule_disposal(engine)
+            await asyncio.sleep(0)
+            await asyncio.gather(*tuple(p._pending_disposals), return_exceptions=True)
+
+        assert any("Background dispose failed" in r.message for r in caplog.records)
+
+    async def test_close_gives_up_on_a_stuck_disposal(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A partitioned database must not hang shutdown past the SIGTERM grace.
+
+        close() drains in-flight disposals, but bounded: on timeout it logs the
+        count still pending, cancels them, and proceeds.
+        """
+        import logging  # noqa: PLC0415
+
+        p = DatabaseIsolationProvider(_db_cfg(), master_engine=AsyncMock())
+        p._CLOSE_DISPOSAL_TIMEOUT_S = 0.05
+
+        async def _never_finishes() -> None:
+            await asyncio.sleep(3600)
+
+        stuck = asyncio.create_task(_never_finishes())
+        p._pending_disposals.add(stuck)
+
+        with caplog.at_level(logging.WARNING, logger="fastapi_tenancy.isolation.database"):
+            await p.close()
+
+        assert any("timed out" in r.message for r in caplog.records)
+        assert not p._pending_disposals
+        assert stuck.cancelled() or stuck.done()
+
+    async def test_close_drains_a_finished_disposal(self) -> None:
+        """The normal path: in-flight disposals complete before shutdown returns."""
+        p = DatabaseIsolationProvider(_db_cfg(), master_engine=AsyncMock())
+        engine = MagicMock()
+        engine.dispose = AsyncMock()
+
+        p._schedule_disposal(engine)
+        assert p._pending_disposals
+
+        await p.close()
+
+        engine.dispose.assert_awaited_once()
+        assert not p._pending_disposals

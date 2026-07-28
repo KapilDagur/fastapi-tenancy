@@ -1317,3 +1317,69 @@ class TestFindingFixes:
             assert resolver._audience == "my-api-service"
         finally:
             await manager.close()
+
+
+@pytest.mark.unit
+class TestRateLimiterLifecycle:
+    """Rate-limiter client creation and disposal across initialize/close."""
+
+    @staticmethod
+    def _cfg_with_redis() -> TenancyConfig:
+        return TenancyConfig(
+            database_url=_SQLITE,
+            resolution_strategy=ResolutionStrategy.HEADER,
+            isolation_strategy=IsolationStrategy.SCHEMA,
+            redis_url="redis://localhost:6379/0",
+            enable_rate_limiting=True,
+        )
+
+    async def test_initialize_builds_the_limiter_once(self) -> None:
+        """A second initialize() must reuse the client, not replace it.
+
+        Replacing it strands the first connection with no reference left to
+        close, which leaks until GC.
+        """
+        m = TenancyManager(self._cfg_with_redis(), InMemoryTenantStore())
+        calls: list[int] = []
+
+        async def _fake_init() -> None:
+            calls.append(1)
+            m._rate_limiter = AsyncMock()
+
+        m._init_rate_limiter = _fake_init  # type: ignore[method-assign]
+        await m.initialize()
+        first = m._rate_limiter
+        await m.initialize()
+
+        assert len(calls) == 1
+        assert m._rate_limiter is first
+        await m.close()
+
+    async def test_close_disposes_the_limiter(self) -> None:
+        """close() must release the Redis connection, not leave it to GC."""
+        m = TenancyManager(self._cfg_with_redis(), InMemoryTenantStore())
+        limiter = AsyncMock()
+        m._rate_limiter = limiter
+
+        await m.close()
+
+        limiter.aclose.assert_awaited_once()
+        assert m._rate_limiter is None
+
+    async def test_close_survives_a_failing_limiter(self) -> None:
+        """A broken Redis connection must not block the rest of shutdown."""
+        m = TenancyManager(self._cfg_with_redis(), InMemoryTenantStore())
+        limiter = AsyncMock()
+        limiter.aclose.side_effect = ConnectionError("redis already gone")
+        m._rate_limiter = limiter
+
+        await m.close()  # must not raise
+
+        assert m._rate_limiter is None
+
+    async def test_close_is_idempotent(self) -> None:
+        m = TenancyManager(self._cfg_with_redis(), InMemoryTenantStore())
+        m._rate_limiter = AsyncMock()
+        await m.close()
+        await m.close()  # must not raise
+        assert m._rate_limiter is None
