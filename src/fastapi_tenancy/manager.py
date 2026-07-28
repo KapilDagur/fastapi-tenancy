@@ -401,6 +401,11 @@ class TenancyManager:
         # enabled; cancelled by close() on shutdown.
         self._purge_task: asyncio.Task[None] | None = None
 
+        # Mutex serialising initialize() and close().  Created lazily so the
+        # manager can still be constructed at module import, outside any
+        # running loop — the common wiring pattern.
+        self._lifecycle_lock: asyncio.Lock | None = None
+
         # Field-level encryption — None when enable_encryption=False.
         from fastapi_tenancy.utils.encryption import TenancyEncryption  # noqa: PLC0415
 
@@ -419,6 +424,18 @@ class TenancyManager:
     # Lifecycle #
     #############
 
+    def _get_lifecycle_lock(self) -> asyncio.Lock:
+        """Return (lazily creating) the lock guarding initialize/close.
+
+        Lazy creation lets ``TenancyManager`` be constructed outside an async
+        context while still guaranteeing that two concurrent
+        ``initialize()``/``close()`` coroutines cannot interleave their
+        state-mutation steps.
+        """
+        if self._lifecycle_lock is None:
+            self._lifecycle_lock = asyncio.Lock()
+        return self._lifecycle_lock
+
     async def initialize(self) -> None:
         """Initialise all components.
 
@@ -430,38 +447,53 @@ class TenancyManager:
         3. Starts the L1 cache background purge task (when cache is enabled).
         4. Establishes the Redis rate-limiter connection (when rate limiting is enabled).
 
-        Safe to call multiple times — all operations are idempotent.  A second
-        call while the purge task is already running will not start a duplicate.
+        **Idempotent across calls.**  The whole body is serialised by the
+        lifecycle lock, so two concurrent callers cannot both observe
+        ``_purge_task is None`` and start duplicate tasks, and a second call
+        reuses the existing rate-limiter client rather than replacing it —
+        replacing it leaks the first connection.  Store-level idempotency is
+        delegated to the store; every shipped store is idempotent here.
+
+        To genuinely re-initialise (different config, or recovering from a
+        failed startup), call :meth:`close` first.
         """
-        if hasattr(self.store, "initialize"):
-            await self.store.initialize()
-            logger.info("Store initialised: %s", type(self.store).__name__)
+        async with self._get_lifecycle_lock():
+            if hasattr(self.store, "initialize"):
+                await self.store.initialize()
+                logger.info("Store initialised: %s", type(self.store).__name__)
 
-        if self.config.cache_enabled and hasattr(self.store, "warm_cache"):
-            await self.store.warm_cache()
-            logger.info("Cache warmed")
+            if self.config.cache_enabled and hasattr(self.store, "warm_cache"):
+                await self.store.warm_cache()
+                logger.info("Cache warmed")
 
-        if self._l1_cache is not None:
-            logger.info("L1 in-process tenant cache active")
-            # Start the background purge task only when it is not already running.
-            # The task runs every half-TTL interval so that on average no entry
-            # survives longer than 1.5x its configured TTL in memory.  This is
-            # a best-effort sweep — lazy eviction on access is still the primary
-            # mechanism; the task merely reclaims memory in low-traffic processes.
-            if self._purge_task is None or self._purge_task.done():
-                self._purge_task = asyncio.create_task(
-                    self._run_cache_purge_loop(),
-                    name="fastapi-tenancy:l1-cache-purge",
-                )
-                logger.info(
-                    "L1 cache purge task started (interval=%ds)",
-                    max(1, self.config.l1_cache_ttl_seconds // 2),
-                )
+            if self._l1_cache is not None:
+                logger.info("L1 in-process tenant cache active")
+                # Start the background purge task only when it is not already
+                # running.  The task runs every half-TTL interval so that on
+                # average no entry survives longer than 1.5x its configured TTL
+                # in memory.  This is a best-effort sweep — lazy eviction on
+                # access is still the primary mechanism; the task merely
+                # reclaims memory in low-traffic processes.
+                if self._purge_task is None or self._purge_task.done():
+                    self._purge_task = asyncio.create_task(
+                        self._run_cache_purge_loop(),
+                        name="fastapi-tenancy:l1-cache-purge",
+                    )
+                    logger.info(
+                        "L1 cache purge task started (interval=%ds)",
+                        max(1, self.config.l1_cache_ttl_seconds // 2),
+                    )
 
-        if self.config.enable_rate_limiting and self.config.redis_url:
-            await self._init_rate_limiter()
+            # Reuse an existing client — recreating it on a second initialize()
+            # would strand the first one with no reference to close it.
+            if (
+                self.config.enable_rate_limiting
+                and self.config.redis_url
+                and self._rate_limiter is None
+            ):
+                await self._init_rate_limiter()
 
-        logger.info("TenancyManager initialised")
+            logger.info("TenancyManager initialised")
 
     async def close(self) -> None:
         """Dispose all resources.
@@ -474,24 +506,39 @@ class TenancyManager:
         unconditionally — ``TenantStore`` now declares a concrete no-op
         ``close()`` that subclasses override when they hold external resources,
         so the old ``hasattr`` guard is no longer necessary.
+
+        Serialised against :meth:`initialize` by the lifecycle lock, so an
+        in-flight startup cannot observe ``_purge_task is None`` *after*
+        shutdown clears it and resurrect the task.
         """
-        # Cancel the background purge task first so it cannot reference the
-        # cache after the store is closed.
-        if self._purge_task is not None and not self._purge_task.done():
-            self._purge_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await self._purge_task
-            logger.info("L1 cache purge task cancelled")
-        self._purge_task = None
+        async with self._get_lifecycle_lock():
+            # Cancel the background purge task first so it cannot reference the
+            # cache after the store is closed.
+            if self._purge_task is not None and not self._purge_task.done():
+                self._purge_task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await self._purge_task
+                logger.info("L1 cache purge task cancelled")
+            self._purge_task = None
 
-        if hasattr(self.isolation_provider, "close"):
-            await self.isolation_provider.close()
-        logger.info("Isolation provider closed")
+            if hasattr(self.isolation_provider, "close"):
+                await self.isolation_provider.close()
+            logger.info("Isolation provider closed")
 
-        await self.store.close()
-        logger.info("Store closed")
+            await self.store.close()
+            logger.info("Store closed")
 
-        logger.info("TenancyManager shut down cleanly")
+            # Close the rate-limiter Redis client.  Without this the connection
+            # leaks until GC, redis.asyncio emits "Unclosed connection" at
+            # process exit, and some servers block on the open socket while
+            # handling SIGTERM, slowing shutdown.
+            if self._rate_limiter is not None:
+                with contextlib.suppress(Exception):
+                    await self._rate_limiter.aclose()
+                self._rate_limiter = None
+                logger.info("Rate limiter Redis connection closed")
+
+            logger.info("TenancyManager shut down cleanly")
 
     ###########################
     # FastAPI lifespan helper #

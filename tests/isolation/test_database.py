@@ -260,6 +260,137 @@ class TestGetEngine:
         await p.close()
 
 
+class TestAsyncDisposalOnEviction:
+    """FIX (P2): engine.dispose() on LRU eviction runs in the background.
+
+    Before the fix:
+        ``_get_engine`` called ``await evicted.dispose()`` inline, so the
+        user request that triggered the eviction also paid the pool-close
+        latency (could be hundreds of ms for a real DB pool that has open
+        connections).
+
+    After the fix:
+        Disposal is scheduled via ``asyncio.create_task`` with the task
+        held in ``_pending_disposals`` for strong-reference safety; a
+        ``done_callback`` removes the task on completion.  ``close()``
+        drains any still-pending tasks before final shutdown.
+    """
+
+    async def _fill_cache(
+        self,
+        provider: DatabaseIsolationProvider,
+        make_tenant: Callable[..., Tenant],
+        prefix: str,
+        count: int,
+    ) -> None:
+        """Seed *count* engines into the LRU cache."""
+        for i in range(count):
+            await provider._get_engine(make_tenant(identifier=f"{prefix}-{i:02d}"))
+
+    async def test_schedule_disposal_returns_immediately(self) -> None:
+        """The unit under test: _schedule_disposal must not await the engine's
+        dispose — it just kicks off a background task and returns.  We test
+        directly because patching AsyncEngine.dispose is impossible (the
+        attribute is read-only on the Cython subclass)."""
+        import asyncio  # noqa: PLC0415
+        import time  # noqa: PLC0415
+
+        cfg = _db_cfg()  # default settings
+        p = DatabaseIsolationProvider(cfg)
+        try:
+
+            class _SlowFakeEngine:
+                """Lookalike for AsyncEngine — only dispose() matters here."""
+
+                async def dispose(self) -> None:
+                    await asyncio.sleep(5)  # would block any awaiting caller
+
+            fake = _SlowFakeEngine()
+            t0 = time.monotonic()
+            p._schedule_disposal(fake)  # type: ignore[arg-type]
+            elapsed = time.monotonic() - t0
+
+            assert elapsed < 0.5, (
+                f"_schedule_disposal blocked for {elapsed:.2f}s — must be fire-and-forget"
+            )
+            assert len(p._pending_disposals) == 1
+            task = next(iter(p._pending_disposals))
+            assert not task.done(), "Disposal task finished synchronously"
+        finally:
+            for task in list(p._pending_disposals):
+                task.cancel()
+            await p.close()
+
+    async def test_eviction_schedules_a_disposal_task(
+        self, make_tenant: Callable[..., Tenant]
+    ) -> None:
+        """End-to-end: filling the cache past capacity must enqueue a
+        background disposal task rather than dispose inline."""
+        cfg = _db_cfg(max_cached_engines=10)
+        p = DatabaseIsolationProvider(cfg)
+        try:
+            await self._fill_cache(p, make_tenant, "evict-sched", 10)
+            assert len(p._pending_disposals) == 0  # no eviction yet
+            # 11th get → LRU eviction → background dispose scheduled.
+            await p._get_engine(make_tenant(identifier="evict-sched-trigger"))
+            assert len(p._pending_disposals) >= 1, (
+                "Expected the evicted engine's dispose to be scheduled as a "
+                "background task instead of awaited inline"
+            )
+        finally:
+            await p.close()
+
+    async def test_close_drains_pending_disposals(self, make_tenant: Callable[..., Tenant]) -> None:
+        """close() must await any pending background disposals so we don't
+        shut the process down while connection pools are still closing."""
+        cfg = _db_cfg(max_cached_engines=10)
+        p = DatabaseIsolationProvider(cfg)
+        try:
+            await self._fill_cache(p, make_tenant, "drain-cap", 10)
+            # Eviction → background disposal scheduled.
+            await p._get_engine(make_tenant(identifier="drain-trigger"))
+            assert len(p._pending_disposals) >= 1
+            disposal_task = next(iter(p._pending_disposals))
+        finally:
+            await p.close()
+
+        # After close(), the disposal task must be done and the pending
+        # set must be empty.
+        assert disposal_task.done()
+        assert len(p._pending_disposals) == 0
+
+    async def test_pending_disposals_self_cleanup_on_completion(
+        self, make_tenant: Callable[..., Tenant]
+    ) -> None:
+        """The done_callback must remove finished tasks from the strong-ref
+        set so it doesn't grow unbounded across a long-running process."""
+        import asyncio  # noqa: PLC0415
+
+        cfg = _db_cfg(max_cached_engines=10)
+        p = DatabaseIsolationProvider(cfg)
+        try:
+            await self._fill_cache(p, make_tenant, "selfclean", 10)
+            # Trigger 5 evictions back-to-back.
+            for i in range(5):
+                await p._get_engine(make_tenant(identifier=f"selfclean-extra-{i}"))
+                # Yield to the event loop so the background dispose can run.
+                await asyncio.sleep(0)
+
+            # Wait for all in-flight disposals to finish, then yield once
+            # more so the done_callbacks fire (they're scheduled on the loop,
+            # not invoked synchronously by gather).
+            if p._pending_disposals:
+                await asyncio.gather(*p._pending_disposals, return_exceptions=True)
+                await asyncio.sleep(0)
+
+            assert len(p._pending_disposals) == 0, (
+                "Background disposal tasks did not remove themselves from the "
+                "strong-reference set on completion"
+            )
+        finally:
+            await p.close()
+
+
 @pytest.mark.unit
 class TestGetSession:
     async def test_yields_session(

@@ -9,11 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Security & reliability fixes
 
-> Twenty-one targeted fixes addressing rate-limit enforcement, JWT algorithm
-> confusion, tenant enumeration, concurrency safety,
-> WebSocket error handling, JWT security hardening, connection-pool lifecycle,
-> per-tenant database naming, secret redaction, cache correctness, and
-> observability gaps.
+> Twenty-four targeted fixes addressing rate-limit enforcement, JWT algorithm
+> confusion, tenant enumeration, startup/shutdown races, WebSocket error
+> handling, connection-pool lifecycle, per-tenant database naming, secret
+> redaction, cache correctness, and observability gaps.
 
 ### Added
 
@@ -383,6 +382,43 @@ deployment that *is* behind a proxy. Instead the exposure is now visible: a
 `WARNING` is logged at construction whenever the header is trusted, and
 `trust_x_forwarded=False` is documented as the opt-out that blocks the spoof. A
 future major release will flip the default.
+
+**FIX 22 — `initialize()` and `close()` could interleave (`manager.py`)**
+
+Neither method held a lock. Two concurrent `initialize()` calls could both
+observe `_purge_task is None` and start duplicate purge tasks, and a `close()`
+racing an in-flight `initialize()` could clear `_purge_task` only for the
+startup path to resurrect it — leaving a background task running against a
+closed store.
+
+A second `initialize()` also called `_init_rate_limiter()` unconditionally,
+replacing `_rate_limiter` and stranding the previous client with no reference
+left to close it.
+
+Fix: both methods run under a lazily-created lifecycle lock, and the
+rate-limiter is only created when `_rate_limiter is None`.
+
+**FIX 23 — Rate-limiter Redis connection leaked on shutdown (`manager.py`)**
+
+`close()` disposed the isolation provider and the store but never closed the
+rate-limiter client. The connection leaked until GC, `redis.asyncio` emitted
+"Unclosed connection" at process exit, and some servers block on the open
+socket while handling SIGTERM.
+
+Fix: `close()` now calls `aclose()` on the client and clears the reference.
+
+**FIX 24 — Evicted engine disposal blocked a user request
+(`isolation/database.py`)**
+
+When the per-tenant engine LRU was full, the request that triggered the
+eviction also `await`ed `dispose()` on the evicted engine — paying the full
+connection-pool close latency for a pool it never used.
+
+Fix: disposal moves to a background task. Strong task references are kept in
+`_pending_disposals` because `asyncio.create_task` only weak-refs the task,
+which would otherwise let the GC collect it mid-flight and leave the pool open.
+`close()` drains in-flight disposals, bounded by a 30 s timeout so a
+partitioned database cannot hang lifespan shutdown past a SIGTERM grace period.
 
 ### Added
 

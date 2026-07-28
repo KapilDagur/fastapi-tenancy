@@ -216,6 +216,12 @@ class DatabaseIsolationProvider(BaseIsolationProvider):
             weakref.WeakValueDictionary()
         )
         self._creation_locks_lock: asyncio.Lock = asyncio.Lock()
+        # Background disposal tasks for engines evicted from the LRU cache.
+        # Strong references are held here because asyncio.create_task only
+        # weak-refs the task — without this the GC can collect it mid-flight
+        # and the pool never closes.  Tasks remove themselves on completion
+        # via add_done_callback; close() drains whatever is still in flight.
+        self._pending_disposals: set[asyncio.Task[None]] = set()
 
         if master_engine is not None:
             self._master = master_engine
@@ -369,10 +375,10 @@ class DatabaseIsolationProvider(BaseIsolationProvider):
             engine = create_async_engine(url, **kw)
             evicted = await self._engine_cache.put(tenant.id, engine)
             if evicted is not None:
-                try:
-                    await evicted.dispose()
-                except Exception as exc:
-                    logger.warning("Error disposing evicted engine: %s", exc)
+                # Dispose in the background — pool-close latency would
+                # otherwise land on this user's request, which is merely the
+                # one unlucky enough to trigger the eviction.
+                self._schedule_disposal(evicted)
             logger.debug(
                 "Created engine tenant=%s cached_count=%d",
                 tenant.id,
@@ -635,8 +641,82 @@ class DatabaseIsolationProvider(BaseIsolationProvider):
         except Exception:
             return False
 
+    def _schedule_disposal(self, engine: AsyncEngine) -> None:
+        """Dispose *engine* in the background, holding a strong task reference.
+
+        The task removes itself from ``_pending_disposals`` on completion.  Any
+        exception from ``dispose()`` is logged at WARNING and swallowed — a
+        failed dispose leaks a pool but must not surface on the unrelated
+        request that happened to trigger the eviction.
+
+        Args:
+            engine: The evicted engine to dispose.
+        """
+
+        async def _dispose() -> None:
+            try:
+                await engine.dispose()
+            except Exception as exc:
+                logger.warning("Background dispose failed for evicted engine: %s", exc)
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            # No running loop.  Eviction should only ever happen from async
+            # code, so this is a misuse path — dispose synchronously so the
+            # pool still closes, but warn loudly rather than silently leak.
+            logger.warning(
+                "_schedule_disposal called outside a running event loop; "
+                "falling back to a blocking dispose.  Engines should only be "
+                "evicted from async code paths."
+            )
+            try:
+                asyncio.run(_dispose())
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.warning("Synchronous dispose fallback failed: %s", exc)
+            return
+
+        task = asyncio.create_task(_dispose(), name="fastapi-tenancy:engine-dispose")
+        self._pending_disposals.add(task)
+        task.add_done_callback(self._pending_disposals.discard)
+
+    # Max wall-clock seconds spent draining background engine disposals in
+    # close().  Beyond this we give up, log, and let the process exit — a
+    # partitioned database would otherwise hang lifespan shutdown past the
+    # orchestrator's SIGTERM grace period and earn a SIGKILL, which leaves
+    # connections in TIME_WAIT.  30 s fits inside the Kubernetes default.
+    _CLOSE_DISPOSAL_TIMEOUT_S: float = 30.0
+
     async def close(self) -> None:
-        """Dispose all per-tenant engines from the LRU cache and the master engine."""
+        """Dispose all per-tenant engines from the LRU cache and the master engine.
+
+        Drains any in-flight background disposals first, so the process does
+        not shut down while connection pools are still closing.  The drain is
+        bounded by :attr:`_CLOSE_DISPOSAL_TIMEOUT_S`; on timeout the still-
+        pending count is logged and shutdown proceeds.
+        """
+        if self._pending_disposals:
+            pending = tuple(self._pending_disposals)
+            try:
+                await asyncio.wait_for(
+                    asyncio.gather(*pending, return_exceptions=True),
+                    timeout=self._CLOSE_DISPOSAL_TIMEOUT_S,
+                )
+            except TimeoutError:
+                still_pending = sum(1 for t in pending if not t.done())
+                logger.warning(
+                    "close() timed out after %.1fs waiting on %d background engine "
+                    "disposal(s); proceeding with shutdown.  Stuck connection pools "
+                    "will close on process exit.",
+                    self._CLOSE_DISPOSAL_TIMEOUT_S,
+                    still_pending,
+                )
+                for t in pending:
+                    if not t.done():
+                        t.cancel()
+            finally:
+                self._pending_disposals.clear()
+
         disposed = await self._engine_cache.dispose_all()
         logger.debug("Disposed %d per-tenant engines", disposed)
         await self._master.dispose()
