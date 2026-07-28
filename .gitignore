@@ -43,6 +43,7 @@ coverage.xml
 *.cover
 nosetests.xml
 test-results/
+test-results.txt
 
 # Type checking
 .mypy_cache/
