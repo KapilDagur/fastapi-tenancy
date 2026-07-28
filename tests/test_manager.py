@@ -259,7 +259,13 @@ class TestManagerInitialize:
         object.__setattr__(cfg, "cache_enabled", True)
         m = TenancyManager(cfg, store)
         await m.initialize()
-        store.warm_cache.assert_awaited_once()
+        try:
+            store.warm_cache.assert_awaited_once()
+        finally:
+            # cache_enabled=True builds L1, so initialize() started the purge
+            # task.  Without close() it survives the test and asyncio reports
+            # "Task was destroyed but it is pending!" at interpreter shutdown.
+            await m.close()
 
     @pytest.mark.asyncio
     async def test_does_not_warm_cache_when_disabled(self) -> None:
@@ -1096,8 +1102,8 @@ class TestManagerUsesConfigFields:
         m = TenancyManager(cfg, store)
 
         assert m._l1_cache is not None
-        assert m._l1_cache._max_size == 250
-        assert m._l1_cache._ttl == 45
+        assert m._l1_cache.max_size == 250
+        assert m._l1_cache.ttl == 45
 
     async def test_l1_cache_not_built_when_disabled(self) -> None:
         cfg = _manager_cfg(cache_enabled=False)
@@ -1184,3 +1190,39 @@ class TestRateLimitFailClosed:
             rate_limit_fail_closed=True,
         )
         assert cfg.rate_limit_fail_closed is True
+
+
+class TestFindingFixes:
+    """Regression tests for the reviewed findings F3 and F6."""
+
+    async def test_l1_cache_built_without_redis(self) -> None:
+        """F6: l1_cache_enabled alone must build the in-process cache."""
+        config = TenancyConfig(
+            database_url="sqlite+aiosqlite:///:memory:",
+            l1_cache_enabled=True,
+        )
+        manager = TenancyManager(config, InMemoryTenantStore())
+        try:
+            assert manager._l1_cache is not None
+            assert manager.get_metrics()["l1_cache"] is not None
+        finally:
+            await manager.close()
+
+    async def test_jwt_audience_reaches_the_resolver(self) -> None:
+        """F3: config.jwt_audience must be threaded into JWTTenantResolver."""
+        pytest.importorskip("jwt", reason="PyJWT not installed")
+        from fastapi_tenancy.resolution.jwt import JWTTenantResolver  # noqa: PLC0415
+
+        config = TenancyConfig(
+            database_url="sqlite+aiosqlite:///:memory:",
+            resolution_strategy=ResolutionStrategy.JWT,
+            jwt_secret="s" * 40,
+            jwt_audience="my-api-service",
+        )
+        manager = TenancyManager(config, InMemoryTenantStore())
+        try:
+            resolver = manager.resolver
+            assert isinstance(resolver, JWTTenantResolver)
+            assert resolver._audience == "my-api-service"
+        finally:
+            await manager.close()

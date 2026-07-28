@@ -148,7 +148,8 @@ class _CachingStoreProxy:
     async def update(self, tenant: Tenant) -> Tenant:
         # Invalidate the *old* identifier before writing so that a
         # rename does not leave a stale identifier id mapping in L1.
-        old_cached = self._l1.get(tenant.id)
+        # peek(): bookkeeping read must not be counted as a cache hit.
+        old_cached = self._l1.peek(tenant.id)
         if old_cached is not None and old_cached.identifier != tenant.identifier:
             self._l1.invalidate_by_identifier(old_cached.identifier)
         result = await self._store.update(tenant)
@@ -278,6 +279,7 @@ def _build_resolver(
             secret=config.jwt_secret,
             algorithm=config.jwt_algorithm,
             tenant_claim=config.jwt_tenant_claim,
+            audience=config.jwt_audience,
         )
 
     raise ConfigurationError(
@@ -367,7 +369,7 @@ class TenancyManager:
         # the proxy, getting automatic L1 cache hits on every warm request.
         self._l1_cache: Any = None
         _effective_store: Any = store
-        if config.cache_enabled:
+        if config.l1_cache_active():
             from fastapi_tenancy.cache.tenant_cache import TenantCache  # noqa: PLC0415
 
             self._l1_cache = TenantCache(
@@ -377,8 +379,8 @@ class TenancyManager:
             _effective_store = _CachingStoreProxy(store, self._l1_cache)
             logger.info(
                 "L1 TenantCache wired max_size=%d ttl=%ds",
-                self._l1_cache._max_size,
-                self._l1_cache._ttl,
+                self._l1_cache.max_size,
+                self._l1_cache.ttl,
             )
 
         self.store = _effective_store
@@ -882,10 +884,10 @@ return count + 1
             logger.exception(
                 f"Rate limit Redis failure for tenant {tenant.id!r} — {exc.__repr__()}. "
                 "Operating in fail-{} mode.".format(
-                    "closed" if getattr(self.config, "rate_limit_fail_closed", False) else "open"
+                    "closed" if self.config.rate_limit_fail_closed else "open"
                 )
             )
-            if getattr(self.config, "rate_limit_fail_closed", False):
+            if self.config.rate_limit_fail_closed:
                 raise RateLimitExceededError(
                     tenant_id=tenant.id,
                     limit=self.config.rate_limit_per_minute,
@@ -953,7 +955,7 @@ return count + 1
 
         engine_cache_size: int | None = None
         if isinstance(self.isolation_provider, DatabaseIsolationProvider):
-            engine_cache_size = self.isolation_provider._engine_cache.size
+            engine_cache_size = self.isolation_provider.engine_cache_size
 
         return {
             "metrics_enabled": self.config.enable_metrics,

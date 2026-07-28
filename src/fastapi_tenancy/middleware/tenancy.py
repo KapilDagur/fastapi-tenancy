@@ -172,7 +172,16 @@ class TenancyMiddleware:
         self._excluded: list[str] = excluded_paths or []
 
     def _is_excluded(self, path: str) -> bool:
-        """Return ``True`` when *path* starts with any excluded prefix.
+        """Return ``True`` when *path* is, or is nested under, an excluded prefix.
+
+        Matching is **segment-anchored**: ``"/health"`` excludes ``/health`` and
+        ``/health/live`` but not ``/healthz`` or ``/health-internal``.  A bare
+        ``startswith`` would exempt those from tenant resolution, the
+        inactive-tenant check, and rate limiting — a quiet way to leave an
+        endpoint unprotected by naming it close to an excluded one.
+
+        Trailing slashes on the configured prefix are ignored, so ``"/api"`` and
+        ``"/api/"`` behave identically.  Excluding ``"/"`` excludes everything.
 
         Args:
             path: Request URL path.
@@ -180,7 +189,13 @@ class TenancyMiddleware:
         Returns:
             ``True`` when this path should bypass tenancy resolution.
         """
-        return any(path.startswith(prefix) for prefix in self._excluded)
+        for prefix in self._excluded:
+            normalised = prefix.rstrip("/")
+            if not normalised:  # "/" or "" — excludes the whole app
+                return True
+            if path == normalised or path.startswith(normalised + "/"):
+                return True
+        return False
 
     async def __call__(
         self,
@@ -306,10 +321,8 @@ class TenancyMiddleware:
                 )
                 return
 
-        # Set tenant context — use token-based reset in finally for safety.
-        # Initialise token to None so the finally block can safely guard against
-        # NameError if an exception occurs before TenantContext.set() is reached.
-        token = None
+        # Set tenant context.  set() runs before the try, so if it raised we
+        # would never reach the finally — the token is always bound there.
         token = TenantContext.set(tenant)
         try:
             # Attach tenant to scope so route handlers can access it without
@@ -341,10 +354,8 @@ class TenancyMiddleware:
             logger.exception("Unhandled tenancy error: %s", exc)  # noqa: TRY401
             await _send_error(500, "Internal tenancy error")
         finally:
-            # Always restore — never unconditionally clear.
-            # Guard against NameError if set() was never reached.
-            if token is not None:
-                TenantContext.reset(token)
+            # Always restore the previous tenant — never unconditionally clear.
+            TenantContext.reset(token)
 
 
 __all__ = ["TenancyMiddleware"]

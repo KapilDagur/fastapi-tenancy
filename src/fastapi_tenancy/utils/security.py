@@ -139,6 +139,12 @@ def constant_time_compare(value1: str, value2: str) -> bool:
 def hash_value(value: str, salt: str | None = None) -> str:
     """Compute a hex-encoded SHA-256 hash of *value* with an optional *salt*.
 
+    .. warning::
+        This is a plain, fast digest — correct for fingerprinting API keys and
+        opaque tokens, and **wrong for passwords**.  SHA-256 is cheap to brute
+        force at scale; use a memory-hard KDF (argon2, scrypt, bcrypt) for any
+        user-chosen secret.
+
     Args:
         value: The string to hash.
         salt: Optional salt prepended to *value* before hashing.

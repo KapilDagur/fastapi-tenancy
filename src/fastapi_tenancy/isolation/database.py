@@ -240,6 +240,11 @@ class DatabaseIsolationProvider(BaseIsolationProvider):
             config.max_cached_engines,
         )
 
+    @property
+    def engine_cache_size(self) -> int:
+        """Number of per-tenant engines currently held in the LRU cache."""
+        return self._engine_cache.size
+
     ####################
     # Internal helpers #
     ####################

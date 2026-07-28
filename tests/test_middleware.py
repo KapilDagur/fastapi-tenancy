@@ -753,3 +753,39 @@ class TestWebSocketErrorPaths:
 
         # Must not raise.
         await _ws_close(broken_send, code=1008)  # type: ignore[arg-type]
+
+
+class TestExcludedPathAnchoring:
+    """F8: excluded_paths must be segment-anchored, not a bare prefix match."""
+
+    def _mw(self, excluded: list[str]) -> TenancyMiddleware:
+        async def _app(scope: Any, receive: Any, send: Any) -> None:  # pragma: no cover
+            return None
+
+        return TenancyMiddleware(app=_app, manager=None, excluded_paths=excluded)
+
+    def test_exact_and_nested_are_excluded(self) -> None:
+        mw = self._mw(["/health"])
+        assert mw._is_excluded("/health")
+        assert mw._is_excluded("/health/")
+        assert mw._is_excluded("/health/live")
+
+    def test_sibling_names_are_not_excluded(self) -> None:
+        """The bug: /healthz and /health-internal silently bypassed tenancy."""
+        mw = self._mw(["/health"])
+        assert not mw._is_excluded("/healthz")
+        assert not mw._is_excluded("/health-internal")
+        assert not mw._is_excluded("/healthcheck-admin")
+
+    def test_trailing_slash_in_config_is_ignored(self) -> None:
+        mw = self._mw(["/api/"])
+        assert mw._is_excluded("/api")
+        assert mw._is_excluded("/api/v1")
+        assert not mw._is_excluded("/apiv1")
+
+    def test_root_excludes_everything(self) -> None:
+        mw = self._mw(["/"])
+        assert mw._is_excluded("/anything/at/all")
+
+    def test_empty_exclusion_list_excludes_nothing(self) -> None:
+        assert not self._mw([])._is_excluded("/health")

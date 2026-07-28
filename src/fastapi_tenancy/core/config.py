@@ -64,8 +64,14 @@ class TenancyConfig(BaseSettings):
         extra="ignore",
     )
 
-    def __str__(self) -> str:
-        """Return a masked string representation safe for logging."""
+    def __repr__(self) -> str:
+        """Return a masked representation safe for logging.
+
+        Masking lives on ``__repr__`` — not only ``__str__`` — because ``repr``
+        is what leaks in practice: ``logging`` with ``%r``, ``f"{config!r}"``,
+        exception rendering, and most debugger and REPL output all call it.
+        ``__str__`` delegates here so both paths are redacted.
+        """
         text = super().__repr__()
         # Mask passwords in connection URLs (scheme://user:SECRET@host/db).
         text = re.sub(r"://([^:]+):([^@]+)@", r"://\1:***@", text)
@@ -77,6 +83,10 @@ class TenancyConfig(BaseSettings):
             flags=re.IGNORECASE,
         )
         return text
+
+    def __str__(self) -> str:
+        """Return the same masked representation as :meth:`__repr__`."""
+        return self.__repr__()
 
     #################
     # Core strategy #
@@ -184,7 +194,22 @@ class TenancyConfig(BaseSettings):
 
     cache_enabled: bool = Field(
         default=False,
-        description="Enable the Redis write-through cache for tenant lookups.",
+        description=(
+            "Enable the Redis write-through cache for tenant lookups.  Requires "
+            "``redis_url``.  This also switches on the in-process L1 cache; use "
+            "``l1_cache_enabled`` to run L1 on its own without Redis."
+        ),
+    )
+
+    l1_cache_enabled: bool = Field(
+        default=False,
+        description=(
+            "Enable the in-process L1 tenant cache (TenantCache) independently "
+            "of Redis.  The L1 cache never talks to Redis, so this does **not** "
+            "require ``redis_url`` — useful for single-process deployments that "
+            "want microsecond tenant lookups without running Redis.  Implied by "
+            "``cache_enabled=True``."
+        ),
     )
 
     l1_cache_max_size: int = Field(
@@ -276,6 +301,16 @@ class TenancyConfig(BaseSettings):
     jwt_tenant_claim: str = Field(
         default="tenant_id",
         description="JWT payload claim that carries the tenant identifier.",
+    )
+
+    jwt_audience: str | None = Field(
+        default=None,
+        description=(
+            "Expected ``aud`` claim.  When set, tokens whose audience does not "
+            "match are rejected.  Strongly recommended whenever the same JWT "
+            "secret is shared across services, to prevent cross-service token "
+            "replay.  ``JWTTenantResolver`` warns at startup when this is unset."
+        ),
     )
 
     ############
@@ -578,6 +613,16 @@ class TenancyConfig(BaseSettings):
     ##################
     # Helper methods #
     ##################
+
+    def l1_cache_active(self) -> bool:
+        """Return ``True`` when the in-process L1 tenant cache should be built.
+
+        ``cache_enabled`` implies L1 (that has always been the behaviour), and
+        ``l1_cache_enabled`` turns L1 on by itself.  The latter deliberately
+        does **not** require ``redis_url``: ``TenantCache`` is a pure in-process
+        LRU and never contacts Redis.
+        """
+        return self.cache_enabled or self.l1_cache_enabled
 
     def get_schema_name(self, tenant_identifier: str) -> str:
         """Compute the PostgreSQL schema name for *tenant_identifier*.

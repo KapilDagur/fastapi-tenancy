@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 import warnings
@@ -336,6 +337,31 @@ class TestHelperMethods:
         assert "supersecret" not in text
         assert "***" in text
 
+    def test_repr_masks_password(self) -> None:
+        """F2: repr is what actually leaks — logging %r, f-strings, tracebacks."""
+        c = TenancyConfig(database_url="postgresql+asyncpg://user:supersecret@host/db")
+        assert "supersecret" not in repr(c)
+        assert "***" in repr(c)
+
+    def test_repr_masks_named_secrets(self) -> None:
+        c = TenancyConfig(
+            database_url=SQLITE_URL,
+            resolution_strategy=ResolutionStrategy.JWT,
+            jwt_secret="j" * 40,
+            enable_encryption=True,
+            encryption_key="e" * 40,
+        )
+        text = repr(c)
+        assert "j" * 40 not in text
+        assert "e" * 40 not in text
+
+    def test_logging_percent_r_is_masked(self, caplog: pytest.LogCaptureFixture) -> None:
+        """The exact leak path: logger.info('%r', config)."""
+        c = TenancyConfig(database_url="postgresql+asyncpg://user:supersecret@host/db")
+        with caplog.at_level(logging.INFO):
+            logging.getLogger("ft-test").info("config=%r", c)
+        assert "supersecret" not in caplog.text
+
 
 class TestPremiumSetBuilt:
     def test_premium_set_is_frozenset(self) -> None:
@@ -349,3 +375,39 @@ class TestPremiumSetBuilt:
         assert isinstance(c._premium_set, frozenset)
         assert "a" in c._premium_set
         assert "d" not in c._premium_set
+
+
+class TestL1CacheIndependentOfRedis:
+    """F6: the in-process L1 cache never talks to Redis, so it must not need it."""
+
+    def test_l1_cache_enabled_without_redis_url(self) -> None:
+        c = TenancyConfig(database_url=SQLITE_URL, l1_cache_enabled=True)
+        assert c.l1_cache_active() is True
+        assert c.redis_url is None
+
+    def test_cache_enabled_still_implies_l1(self) -> None:
+        c = TenancyConfig(
+            database_url=SQLITE_URL,
+            cache_enabled=True,
+            redis_url="redis://localhost:6379/0",
+        )
+        assert c.l1_cache_active() is True
+
+    def test_l1_inactive_by_default(self) -> None:
+        assert make_config().l1_cache_active() is False
+
+
+class TestJwtAudienceConfig:
+    """F3: the cross-service replay mitigation must be reachable from config."""
+
+    def test_jwt_audience_defaults_to_none(self) -> None:
+        assert make_config().jwt_audience is None
+
+    def test_jwt_audience_is_settable(self) -> None:
+        c = TenancyConfig(
+            database_url=SQLITE_URL,
+            resolution_strategy=ResolutionStrategy.JWT,
+            jwt_secret="a" * 32,
+            jwt_audience="my-api-service",
+        )
+        assert c.jwt_audience == "my-api-service"

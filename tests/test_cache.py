@@ -156,6 +156,52 @@ class TestLRUEviction:
         assert c._id_by_ident == {}
 
 
+class TestPeekAndIntrospection:
+    """F9a/F9d: bookkeeping reads stay out of the stats; config is public."""
+
+    def test_peek_hit_does_not_count_as_a_hit(self) -> None:
+        c = TenantCache(ttl=3600)
+        t = _t("t1", "acme-corp")
+        c.set(t)
+        assert c.peek("t1") is t
+        s = c.stats()
+        assert s["hits"] == 0
+        assert s["misses"] == 0
+
+    def test_peek_miss_does_not_count_as_a_miss(self) -> None:
+        c = TenantCache(ttl=3600)
+        assert c.peek("nope") is None
+        s = c.stats()
+        assert s["hits"] == 0
+        assert s["misses"] == 0
+
+    def test_peek_does_not_refresh_lru_position(self) -> None:
+        """A peek must not rescue an entry from eviction the way get() does."""
+        c = TenantCache(max_size=2, ttl=3600)
+        c.set(_t("t1", "ten-one"))
+        c.set(_t("t2", "ten-two"))
+        c.peek("t1")  # get() here would make t1 MRU and evict t2 instead
+        c.set(_t("t3", "ten-thr"))
+        assert c.peek("t1") is None
+        assert c.peek("t2") is not None
+        assert c.peek("t3") is not None
+
+    def test_peek_respects_ttl(self) -> None:
+        c = TenantCache(ttl=1)
+        c.set(_t("t1", "acme-corp"))
+        with patch("fastapi_tenancy.cache.tenant_cache.time") as mock_time:
+            mock_time.monotonic.return_value = time.monotonic() + 10
+            assert c.peek("t1") is None
+
+    def test_max_size_and_ttl_are_public(self) -> None:
+        """F9d: callers read configuration through properties, not privates."""
+        c = TenantCache(max_size=42, ttl=17)
+        assert c.max_size == 42
+        assert c.ttl == 17
+        assert c.stats()["max_size"] == c.max_size
+        assert c.stats()["ttl"] == c.ttl
+
+
 class TestInvalidation:
     def test_invalidate_by_id(self) -> None:
         c = TenantCache(ttl=3600)
@@ -355,6 +401,38 @@ class TestCacheInvalidationOnWrite:
         cache.set(tenant)
         await proxy.delete(tenant.id)
         assert cache.get(tenant.id) is None
+
+    async def test_rename_invalidates_the_old_identifier(self) -> None:
+        """The old identifier→id mapping must not survive a rename."""
+        proxy, cache, backing = self._proxy()
+        tenant = _t("t1", "old-slug")
+        await backing.create(tenant)
+        cache.set(tenant)
+        renamed = tenant.model_copy(update={"identifier": "new-slug"})
+        await backing.update(renamed)
+        await proxy.update(renamed)
+        assert cache.get_by_identifier("old-slug") is None
+
+    async def test_write_path_does_not_pollute_hit_rate(self) -> None:
+        """F9a: proxy.update() reads L1 for bookkeeping — via peek(), not get().
+
+        hit_rate_pct describes *read* traffic.  Counting the write path's
+        internal lookup inflated it, which is how a cache that is never read
+        could still report a healthy hit rate.
+        """
+        proxy, cache, backing = self._proxy()
+        tenant = _t("t1", "rate-inv")
+        await backing.create(tenant)
+        cache.set(tenant)
+        before = cache.stats()
+
+        renamed = tenant.model_copy(update={"identifier": "rate-inv-2"})
+        await backing.update(renamed)
+        await proxy.update(renamed)
+
+        after = cache.stats()
+        assert after["hits"] == before["hits"]
+        assert after["misses"] == before["misses"]
 
 
 class TestCacheLockSafety:

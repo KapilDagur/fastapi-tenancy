@@ -483,9 +483,17 @@ class SchemaIsolationProvider(BaseIsolationProvider):
     async def apply_filters(self, query: SelectT, tenant: Tenant) -> SelectT:
         """Apply ``WHERE tenant_id = :id`` as a defence-in-depth filter.
 
-        For native-schema dialects the ``search_path`` already enforces
-        isolation; this filter is an additional safety net.  For prefix-mode
-        dialects it is the primary isolation mechanism.
+        For native-schema dialects the ``search_path`` (PostgreSQL) or
+        ``schema_translate_map`` (MSSQL) already enforces isolation; this filter
+        is an additional safety net for models that carry a ``tenant_id`` column.
+
+        .. warning:: Prefix-mode dialects
+            In prefix mode (SQLite and unknown dialects) isolation comes from
+            the **table name**, not from a column: each tenant gets its own
+            ``t_<slug>_<table>``.  Those tables usually have no ``tenant_id``
+            column at all, in which case this filter raises at execution time.
+            Prefix-mode callers should select against the prefixed table from
+            ``session.info["table_prefix"]`` and not call this method.
 
         Args:
             query: SQLAlchemy ``Select`` query.

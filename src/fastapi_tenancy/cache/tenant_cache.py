@@ -150,6 +150,34 @@ class TenantCache:
         self._hits += 1
         return entry.tenant
 
+    def peek(self, tenant_id: str) -> Tenant | None:
+        """Return the cached tenant without touching counters or LRU order.
+
+        For bookkeeping reads on *write* paths (e.g. learning the previous
+        identifier before an update).  Counting those as cache hits would
+        inflate ``hit_rate_pct``, which is meant to describe read traffic.
+
+        Args:
+            tenant_id: Opaque tenant primary key.
+
+        Returns:
+            Cached ``Tenant``, or ``None`` on miss or expiry.
+        """
+        entry = self._by_id.get(tenant_id)
+        if entry is None or time.monotonic() > entry.expires_at:
+            return None
+        return entry.tenant
+
+    @property
+    def max_size(self) -> int:
+        """Configured maximum number of cached entries."""
+        return self._max_size
+
+    @property
+    def ttl(self) -> int:
+        """Configured entry time-to-live in seconds."""
+        return self._ttl
+
     def get_by_identifier(self, identifier: str) -> Tenant | None:
         """Return the cached tenant for *identifier*, or ``None`` on miss/expiry.
 

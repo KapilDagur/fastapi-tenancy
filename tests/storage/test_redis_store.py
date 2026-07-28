@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -453,3 +453,46 @@ class TestKeyHelpers:
         assert recovered.id == t.id
         assert recovered.identifier == t.identifier
         assert recovered.status == t.status
+
+
+class TestCacheFailureResilience:
+    """F5 / F7: cache faults must degrade, never fail a request or a write."""
+
+    async def test_get_by_identifier_treats_corrupt_entry_as_miss(
+        self,
+        redis_store: RedisTenantStore,
+        fake_redis: Any,
+        make_tenant: Callable[..., Tenant],
+    ) -> None:
+        """F5: a corrupt slug entry must fall back to the primary store.
+
+        ``get_by_id`` already did this; ``get_by_identifier`` did not, so the
+        hot path every resolver takes would raise on a truncated write or a
+        Tenant schema change.
+        """
+        tenant = await redis_store._primary.create(make_tenant(identifier="acme-corp"))
+
+        # Poison the slug key with bytes that are not valid Tenant JSON.
+        fake_redis._store[redis_store._slug_key("acme-corp")] = b"{not-json"
+
+        result = await redis_store.get_by_identifier("acme-corp")
+        assert result.id == tenant.id
+
+    async def test_invalidate_failure_does_not_fail_the_write(
+        self,
+        redis_store: RedisTenantStore,
+        fake_redis: Any,
+        make_tenant: Callable[..., Tenant],
+    ) -> None:
+        """F7: invalidation runs after the primary commit, so it must not raise."""
+        tenant = await redis_store._primary.create(make_tenant(identifier="acme-corp"))
+
+        async def _boom(*_args: object, **_kwargs: object) -> None:
+            raise ConnectionError("redis down")
+
+        fake_redis.delete = _boom
+
+        updated = await redis_store.set_status(tenant.id, TenantStatus.SUSPENDED)
+        assert updated.status == TenantStatus.SUSPENDED
+        # The primary store is the source of truth and was committed.
+        assert (await redis_store._primary.get_by_id(tenant.id)).status == TenantStatus.SUSPENDED

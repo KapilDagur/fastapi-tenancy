@@ -221,6 +221,33 @@ class TestInitializeDestroyPrefix:
         # Should not raise — FK references must be remapped to prefixed names
         await schema_provider.initialize_tenant(t, metadata=fk_metadata)
 
+        # F9f: assert the remap actually happened.  _initialize_prefix relies on
+        # SQLAlchemy's private ``ForeignKey._column_tokens``; if a future release
+        # changes it, table creation could still succeed while the FK points at
+        # the *unprefixed* table — cross-tenant referential integrity.  Only an
+        # explicit assertion catches that.
+        prefix = schema_provider.get_table_prefix(t)
+
+        def _fk_targets(sync_conn: Any) -> list[str]:
+            insp = sa.inspect(sync_conn)
+            assert insp is not None
+            targets: list[str] = []
+            for table in insp.get_table_names():
+                if not table.startswith(prefix):
+                    continue
+                for fk in insp.get_foreign_keys(table):
+                    targets.append(fk["referred_table"])
+            return targets
+
+        async with schema_provider.engine.connect() as conn:
+            targets = await conn.run_sync(_fk_targets)
+
+        assert targets, "expected at least one foreign key in the prefixed tables"
+        for target in targets:
+            assert target.startswith(prefix), (
+                f"FK target {target!r} was not remapped to the tenant prefix {prefix!r}"
+            )
+
     async def test_destroy_drops_prefixed_tables(
         self,
         schema_provider: SchemaIsolationProvider,

@@ -218,14 +218,32 @@ class RedisTenantStore(TenantStore[Tenant]):
     async def _cache_invalidate(self, tenant_id: str, identifier: str) -> None:
         """Delete both cache keys for a tenant in a single ``DEL`` command.
 
+        Best-effort, like :meth:`_cache_set`.  Every caller invokes this
+        **after** the primary store has already committed, so raising here
+        would report failure for a write that actually succeeded and leave the
+        caller with no way to tell the difference.  A failed invalidation is
+        instead logged loudly; the entry is bounded by ``ttl`` and every
+        mutating caller follows this with a ``_cache_set`` that overwrites both
+        keys anyway.
+
         Args:
             tenant_id: The tenant's opaque ID.
             identifier: The tenant's slug.
         """
-        await self._redis.delete(
-            self._id_key(tenant_id),
-            self._slug_key(identifier),
-        )
+        try:
+            await self._redis.delete(
+                self._id_key(tenant_id),
+                self._slug_key(identifier),
+            )
+        except Exception as exc:
+            logger.warning(
+                "Cache invalidation failed for tenant id=%s (%s) — the primary store was "
+                "already updated; a stale entry may be served for up to %ds.",
+                tenant_id,
+                exc,
+                self._ttl,
+            )
+            return
         logger.debug("Invalidated cache tenant id=%s", tenant_id)
 
     async def _get_old_tenant(self, tenant_id: str) -> Tenant | None:
@@ -293,7 +311,16 @@ class RedisTenantStore(TenantStore[Tenant]):
         cached = await self._redis.get(self._slug_key(identifier))
         if cached is not None:
             logger.debug("Cache HIT identifier=%s", identifier)
-            return self._deserialize(cached)
+            try:
+                return self._deserialize(cached)
+            except Exception:
+                # Mirrors get_by_id: a truncated write or a Tenant schema
+                # change makes older cached JSON unparseable.  This is the
+                # hot path every resolver takes, so it must degrade to a
+                # miss rather than fail the request.
+                logger.warning(
+                    "Corrupt cache entry for identifier=%s, treating as miss", identifier
+                )
         logger.debug("Cache MISS identifier=%s", identifier)
         tenant = await self._primary.get_by_identifier(identifier)
         await self._cache_set(tenant)

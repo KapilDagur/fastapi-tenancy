@@ -595,38 +595,22 @@ class SQLAlchemyTenantStore(TenantStore[Tenant]):
             TenantNotFoundError: When *tenant_id* does not exist.
             TenancyError: On unexpected storage failure.
         """
-        import asyncio as _asyncio  # noqa: PLC0415
-
         if self._dialect != DbDialect.POSTGRESQL:
             async with self._session_factory() as session:
                 return await self._update_metadata_generic(session, tenant_id, metadata)
 
-        _MAX_RETRIES = 5
-        _BASE_BACKOFF = 0.005
-
-        for attempt in range(_MAX_RETRIES):
-            async with self._session_factory() as session:
-                try:
-                    return await self._update_metadata_pg(session, tenant_id, metadata)
-
-                except TenantNotFoundError:
-                    raise
-
-                except Exception as exc:
-                    is_serialization = (
-                        "SerializationError" in type(exc).__name__
-                        or "SerializationError" in type(getattr(exc, "orig", None)).__name__
-                        or "could not serialize" in str(exc).lower()
-                    )
-
-                    if is_serialization and attempt < _MAX_RETRIES - 1:
-                        backoff = _BASE_BACKOFF * (2**attempt)
-                        await _asyncio.sleep(backoff)
-                        continue
-
-                    raise TenancyError(f"Failed to update metadata: {exc}") from exc
-
-        raise TenancyError(f"update_metadata exhausted retries for tenant {tenant_id!r}")
+        # Serialization-failure retries live in _update_metadata_pg, which owns
+        # the SERIALIZABLE transaction.  This method must NOT retry as well:
+        # a second loop here multiplies the budget (5 x 5 = 25 attempts with
+        # compounding back-off, while the docstring promised 5) and makes the
+        # effective retry count impossible to reason about from either site.
+        async with self._session_factory() as session:
+            try:
+                return await self._update_metadata_pg(session, tenant_id, metadata)
+            except TenantNotFoundError:
+                raise
+            except Exception as exc:
+                raise TenancyError(f"Failed to update metadata: {exc}") from exc
 
     async def _update_metadata_pg(
         self,
@@ -664,10 +648,21 @@ class SQLAlchemyTenantStore(TenantStore[Tenant]):
         surfacing it as a ``TenancyError`` would make ``update_metadata``
         non-functional under any meaningful concurrency.
 
-        We retry up to ``_MAX_RETRIES`` times with an exponential back-off.
-        The back-off starts at 5 ms and is kept short because the competing
-        transaction has already committed by the time we receive the error —
-        the retry is nearly always immediately successful.
+        We retry up to ``_MAX_RETRIES`` (25) times.  The budget is sized by
+        contention, not by taste: N concurrent writers on one row serialise,
+        so a writer can lose up to N-1 rounds before its turn.  25 covers the
+        20-concurrent-patch contract with margin.
+
+        Back-off starts at 5 ms — short, because the competing transaction has
+        already committed by the time we receive the error — doubles, and is
+        **capped** at 50 ms, with up to 5 ms of jitter added so that losing
+        writers do not all retry into the same instant.  Without the cap, 25
+        attempts of pure exponential back-off would run for minutes.
+
+        This is the **only** retry loop on this path.  ``update_metadata`` must
+        not add a second one: nested loops previously multiplied to 25 attempts
+        by accident, which was the right order of magnitude for the wrong
+        reason and made the effective budget impossible to reason about.
 
         Args:
             session: Active ``AsyncSession`` (no transaction open yet).
@@ -682,9 +677,22 @@ class SQLAlchemyTenantStore(TenantStore[Tenant]):
             TenancyError: When all retry attempts are exhausted.
         """
         import asyncio as _asyncio  # noqa: PLC0415
+        import secrets as _secrets  # noqa: PLC0415
 
-        _MAX_RETRIES = 5
+        # Retry budget.  N concurrent writers on one row serialise: each round
+        # at most one commits, so a writer can lose up to N-1 times before its
+        # turn comes.  The documented contract covers 20 concurrent patches
+        # (see test_concurrent_metadata_merges_no_lost_update), so the budget
+        # must exceed 20.  A budget of 5 exhausts under that load and surfaces
+        # as TenancyError — a lost update reported as a failure.
+        _MAX_RETRIES = 25
         _BASE_BACKOFF = 0.005  # 5 ms — competing txn already committed
+        # Capped, not purely exponential: at 25 attempts an uncapped
+        # 5 ms * 2**n reaches minutes.  Jitter de-synchronises the losing
+        # writers so they do not all retry into the same instant and
+        # re-collide.  This is scheduling noise, not a security decision.
+        _MAX_BACKOFF = 0.05  # 50 ms
+        _MAX_JITTER_US = 5_000  # ≤ 5 ms
 
         for attempt in range(_MAX_RETRIES):
             try:
@@ -747,7 +755,8 @@ class SQLAlchemyTenantStore(TenantStore[Tenant]):
                     or "could not serialize" in str(exc).lower()
                 )
                 if is_serialization and attempt < _MAX_RETRIES - 1:
-                    backoff = _BASE_BACKOFF * (2**attempt)
+                    backoff = min(_BASE_BACKOFF * (2**attempt), _MAX_BACKOFF)
+                    backoff += _secrets.randbelow(_MAX_JITTER_US) / 1_000_000
                     logger.debug(
                         "Serialization conflict on metadata update for tenant %s "
                         "(attempt %d/%d) — retrying in %.0f ms",
