@@ -226,6 +226,56 @@ class TestManagerInit:
         m = TenancyManager(_cfg(), InMemoryTenantStore(), audit_writer=writer)
         assert m._audit_writer is writer
 
+    def test_audit_writer_without_write_is_rejected_at_construction(self) -> None:
+        """A mistyped writer must fail at startup, not swallow audit entries.
+
+        ``def writes(...)`` instead of ``write`` would otherwise be accepted
+        and drop every audit record silently — discovered, at best, during an
+        incident review when the records are needed.
+        """
+
+        class Mistyped:
+            async def writes(self, entry: Any) -> None:  # note the typo
+                return None
+
+        with pytest.raises(TypeError, match="does not implement AuditLogWriter"):
+            TenancyManager(_cfg(), InMemoryTenantStore(), audit_writer=Mistyped())
+
+    def test_duck_typed_audit_writer_is_accepted(self) -> None:
+        """AuditLogWriter is a Protocol — inheritance must not be required."""
+
+        class Duck:
+            async def write(self, entry: Any) -> None:
+                return None
+
+        writer = Duck()
+        m = TenancyManager(_cfg(), InMemoryTenantStore(), audit_writer=writer)
+        assert m._audit_writer is writer
+
+    def test_dynamic_attribute_audit_writer_is_accepted(self) -> None:
+        """A proxy that resolves ``write`` via ``__getattr__`` must pass.
+
+        This is why the guard is a ``getattr`` check and not
+        ``isinstance(..., AuditLogWriter)``: since Python 3.12, protocol
+        instance checks use ``inspect.getattr_static``, which ignores
+        ``__getattr__`` and would reject dynamic proxies — and bare
+        ``MagicMock`` objects — that work fine at runtime.
+        """
+
+        class Proxy:
+            def __getattr__(self, name: str) -> Any:
+                if name == "write":
+
+                    async def _write(entry: Any) -> None:
+                        return None
+
+                    return _write
+                raise AttributeError(name)
+
+        writer = Proxy()
+        m = TenancyManager(_cfg(), InMemoryTenantStore(), audit_writer=writer)
+        assert m._audit_writer is writer
+
     def test_custom_isolation_provider_stored(self) -> None:
         provider = MagicMock()
         m = TenancyManager(_cfg(), InMemoryTenantStore(), isolation_provider=provider)

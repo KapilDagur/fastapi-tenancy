@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Security & reliability fixes
 
-> Twenty-six targeted fixes addressing rate-limit enforcement, JWT algorithm
+> Twenty-seven targeted fixes addressing rate-limit enforcement, JWT algorithm
 > confusion, tenant enumeration, startup/shutdown races, WebSocket error
 > handling, connection-pool lifecycle, per-tenant database naming, secret
 > redaction, cache correctness, and observability gaps.
@@ -442,6 +442,24 @@ index, without incrementing `_misses`. `hit_rate_pct` was therefore overstated
 for any workload that asks about tenants which do not exist — probe traffic,
 scanners, or simply a cold cache. Same family as FIX 16: the metric must
 describe reality before it can be used to size the cache.
+
+**FIX 27 — A mistyped audit writer silently dropped every record
+(`manager.py`)**
+
+`audit_writer` was stored without any contract check. An object with
+`def writes(...)` — or any other near-miss — was accepted at construction and
+then silently swallowed every audit entry, with the loss discovered at best
+during an incident review, when the records are needed most.
+
+Fix: the writer must expose a callable `write` at construction, or `TypeError`
+is raised immediately, matching the library's fail-fast-at-startup convention.
+
+The check is `callable(getattr(obj, "write", None))` rather than
+`isinstance(obj, AuditLogWriter)` on purpose: since Python 3.12 protocol
+instance checks resolve members with `inspect.getattr_static`, which ignores
+`__getattr__`, so dynamic proxies and bare `MagicMock` doubles would be
+rejected despite working at runtime. Presence is checked, not signature — a
+`write` with the wrong arity still raises on first call.
 
 ### Added
 

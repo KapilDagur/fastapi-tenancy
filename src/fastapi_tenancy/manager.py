@@ -390,6 +390,32 @@ class TenancyManager:
         )
         # Accept any object with an async ``write(entry)`` method — satisfies
         # the AuditLogWriter protocol.  Falls back to the default logger writer.
+        # Validate the writer contract at construction.  A typo like
+        # ``def writes(...)`` would otherwise silently swallow every audit
+        # entry until someone went looking for the records — and for an audit
+        # log, discovering the loss during an incident review is the worst
+        # possible time.  Fails fast at startup instead, matching the RLS
+        # dialect check and the config cross-field validation.
+        #
+        # Deliberately a callable-attribute check rather than
+        # ``isinstance(audit_writer, AuditLogWriter)``.  Since 3.12, protocol
+        # instance checks resolve members with ``inspect.getattr_static``,
+        # which does not consult ``__getattr__`` — so a dynamic proxy, or a
+        # bare ``MagicMock``, is rejected despite working perfectly at
+        # runtime.  Rejecting those would be a real (if narrow) break for a
+        # duck-typed extension point.  ``getattr`` catches the typo this
+        # guard exists for while accepting anything that genuinely responds
+        # to ``write``.
+        #
+        # Presence only, not signature: a ``write`` with the wrong arity
+        # passes here and raises TypeError on the first call.  Checking the
+        # signature would couple this to one exact call shape.
+        if audit_writer is not None and not callable(getattr(audit_writer, "write", None)):
+            msg = (
+                f"audit_writer={audit_writer!r} does not implement AuditLogWriter — "
+                "required method: `async def write(self, entry: AuditLog) -> None`"
+            )
+            raise TypeError(msg)
         self._audit_writer: Any = (
             audit_writer if audit_writer is not None else _DefaultAuditLogWriter()
         )
