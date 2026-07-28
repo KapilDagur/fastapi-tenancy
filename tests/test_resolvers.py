@@ -11,7 +11,7 @@ import jwt as pyjwt
 import pytest
 from starlette.requests import Request
 
-from fastapi_tenancy.core.exceptions import TenantNotFoundError, TenantResolutionError
+from fastapi_tenancy.core.exceptions import TenantResolutionError
 from fastapi_tenancy.core.types import Tenant, TenantStatus
 from fastapi_tenancy.resolution.base import BaseTenantResolver
 from fastapi_tenancy.resolution.header import HeaderTenantResolver
@@ -173,7 +173,8 @@ class TestSubdomainTenantResolver:
         request = _make_request(host="acme-corp.different.com")
         with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
-        assert "does not end with" in exc_info.value.reason.lower()
+        # Generic reason — see anti-enumeration invariant.
+        assert exc_info.value.reason == "Tenant not found"
 
     async def test_single_label_host_raises(self, store: InMemoryTenantStore) -> None:
         """A bare hostname with no dot has no subdomain."""
@@ -181,7 +182,7 @@ class TestSubdomainTenantResolver:
         request = _make_request(host="localhost")
         with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
-        assert "no subdomain" in exc_info.value.reason.lower()
+        assert exc_info.value.reason == "Tenant not found"
 
     async def test_invalid_subdomain_identifier_raises(self, store: InMemoryTenantStore) -> None:
         resolver = SubdomainTenantResolver(store, domain_suffix=".example.com")
@@ -191,11 +192,19 @@ class TestSubdomainTenantResolver:
         with pytest.raises(TenantResolutionError):
             await resolver.resolve(request)
 
-    async def test_no_matching_tenant_raises_not_found(self, store: InMemoryTenantStore) -> None:
+    async def test_no_matching_tenant_raises_resolution_error(
+        self, store: InMemoryTenantStore
+    ) -> None:
+        """Unknown tenant is folded into TenantResolutionError so the
+        middleware returns the same status as missing/invalid identifiers —
+        otherwise the response leaks whether the subdomain matched a real
+        tenant slug (anti-enumeration invariant)."""
         resolver = SubdomainTenantResolver(store, domain_suffix=".example.com")
         request = _make_request(host="no-such-tenant.example.com")
-        with pytest.raises(TenantNotFoundError):
+        with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+        assert exc_info.value.strategy == "subdomain"
 
     async def test_reads_x_forwarded_host_when_trusted(self, store: InMemoryTenantStore) -> None:
         resolver = SubdomainTenantResolver(
@@ -240,7 +249,8 @@ class TestSubdomainTenantResolver:
         request = Request(scope, receive)
         with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
-        assert "host" in exc_info.value.reason.lower()
+        # Generic reason — see anti-enumeration invariant.
+        assert exc_info.value.reason == "Tenant not found"
 
     async def test_falls_back_to_host_when_forwarded_empty(
         self, store: InMemoryTenantStore
@@ -255,6 +265,152 @@ class TestSubdomainTenantResolver:
         )
         tenant = await resolver.resolve(request)
         assert tenant.identifier == "gadgets-co"
+
+
+class TestSubdomainResolverTrustXForwardedDefault:
+    """``trust_x_forwarded`` exposure is opt-out, and loud when left on.
+
+    The risk:
+        The constructor defaults to ``True`` on the assumption that every
+        deployment runs behind a trusted reverse proxy.  A deployment without
+        that proxy — or with one that passes ``X-Forwarded-Host`` through
+        unchanged — accepts attacker-supplied
+        ``X-Forwarded-Host: victim.example.com`` and resolves the wrong
+        tenant: a tenant-impersonation primitive in a single HTTP header.
+
+    What ships:
+        The default stays ``True``.  Flipping it would silently break every
+        existing deployment behind a proxy — resolution would start reading
+        the pre-proxy ``Host`` — so the non-breaking half of the mitigation is
+        a startup ``WARNING`` that makes the exposure visible, plus a
+        documented ``trust_x_forwarded=False`` opt-out that fully blocks the
+        spoof.  A future major release flips the default.
+
+    These tests pin *that* contract, so a later flip is a deliberate act that
+    fails a test rather than a silent behaviour change.
+    """
+
+    @pytest.fixture
+    async def seeded_store(self) -> InMemoryTenantStore:
+        s = InMemoryTenantStore()
+        await s.create(_make_tenant("real-host-co"))
+        await s.create(_make_tenant("victim-co"))
+        return s
+
+    def test_default_is_true_for_backward_compatibility(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        """Pin the default so a flip is deliberate, not incidental.
+
+        If this test is changed to expect ``False``, that is a BREAKING
+        change and belongs in a major release with a CHANGELOG entry.
+        """
+        resolver = SubdomainTenantResolver(seeded_store, domain_suffix=".example.com")
+        assert resolver._trust_x_forwarded is True
+
+    async def test_opt_out_blocks_spoofing(self, seeded_store: InMemoryTenantStore) -> None:
+        """The documented mitigation must actually work.
+
+        Attacker sends ``X-Forwarded-Host: victim-co``; with the opt-out set,
+        resolution must come from ``Host`` and ignore the forged header.
+        """
+        resolver = SubdomainTenantResolver(
+            seeded_store,
+            domain_suffix=".example.com",
+            trust_x_forwarded=False,
+        )
+        request = _make_request(
+            host="real-host-co.example.com",
+            headers={"X-Forwarded-Host": "victim-co.example.com"},
+        )
+        tenant = await resolver.resolve(request)
+        assert tenant.identifier == "real-host-co", (
+            "trust_x_forwarded=False still read X-Forwarded-Host — "
+            "the documented mitigation does not work"
+        )
+
+    async def test_default_is_spoofable_and_says_so(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        """Document the residual risk of the compatible default in a test.
+
+        This asserts the *insecure* behaviour on purpose: it is the reason
+        the warning exists, and it must not be mistaken for a passing
+        security control.
+        """
+        resolver = SubdomainTenantResolver(seeded_store, domain_suffix=".example.com")
+        request = _make_request(
+            host="real-host-co.example.com",
+            headers={"X-Forwarded-Host": "victim-co.example.com"},
+        )
+        tenant = await resolver.resolve(request)
+        assert tenant.identifier == "victim-co"
+
+    async def test_opt_in_still_works(self, seeded_store: InMemoryTenantStore) -> None:
+        """Operators who run behind a trusted proxy can opt in by passing True."""
+        resolver = SubdomainTenantResolver(
+            seeded_store,
+            domain_suffix=".example.com",
+            trust_x_forwarded=True,
+        )
+        request = _make_request(
+            host="real-host-co.example.com",
+            headers={"X-Forwarded-Host": "victim-co.example.com"},
+        )
+        tenant = await resolver.resolve(request)
+        # When trust_x_forwarded=True is *explicitly* set, XFH wins.
+        assert tenant.identifier == "victim-co"
+
+    def test_opt_in_emits_startup_warning(
+        self,
+        seeded_store: InMemoryTenantStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Constructing with trust_x_forwarded=True must emit a WARNING so
+        the security-sensitive choice is visible at startup."""
+        import logging  # noqa: PLC0415
+
+        with caplog.at_level(logging.WARNING, logger="fastapi_tenancy.resolution.subdomain"):
+            SubdomainTenantResolver(
+                seeded_store,
+                domain_suffix=".example.com",
+                trust_x_forwarded=True,
+            )
+        assert any("trust_x_forwarded=True" in r.message for r in caplog.records), (
+            "Expected a WARNING when trust_x_forwarded=True is set"
+        )
+
+    def test_default_also_warns_because_it_is_the_exposed_path(
+        self,
+        seeded_store: InMemoryTenantStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """The warning must fire on the default too — that is the point.
+
+        Warning only on explicit opt-in would leave silent exactly the
+        deployments that never thought about the header.
+        """
+        import logging  # noqa: PLC0415
+
+        with caplog.at_level(logging.WARNING, logger="fastapi_tenancy.resolution.subdomain"):
+            SubdomainTenantResolver(seeded_store, domain_suffix=".example.com")
+        assert any("trust_x_forwarded=True" in r.message for r in caplog.records)
+
+    def test_opt_out_is_silent(
+        self,
+        seeded_store: InMemoryTenantStore,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Once the operator has opted out there is nothing left to warn about."""
+        import logging  # noqa: PLC0415
+
+        with caplog.at_level(logging.WARNING, logger="fastapi_tenancy.resolution.subdomain"):
+            SubdomainTenantResolver(
+                seeded_store,
+                domain_suffix=".example.com",
+                trust_x_forwarded=False,
+            )
+        assert not [r for r in caplog.records if "trust_x_forwarded" in r.message]
 
 
 class TestPathTenantResolver:
@@ -283,27 +439,31 @@ class TestPathTenantResolver:
         request = _make_request(path="/api/users")
         with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
-        assert "does not start with" in exc_info.value.reason.lower()
+        # Generic reason — see anti-enumeration invariant.
+        assert exc_info.value.reason == "Tenant not found"
 
     async def test_empty_identifier_after_prefix_raises(self, store: InMemoryTenantStore) -> None:
         resolver = PathTenantResolver(store, path_prefix="/tenants")
         request = _make_request(path="/tenants/")
         with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
-        assert "identifier" in exc_info.value.reason.lower()
+        assert exc_info.value.reason == "Tenant not found"
 
     async def test_invalid_identifier_raises(self, store: InMemoryTenantStore) -> None:
         resolver = PathTenantResolver(store, path_prefix="/tenants")
         request = _make_request(path="/tenants/INVALID_SLUG/resource")
         with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
-        assert "valid tenant identifier" in exc_info.value.reason.lower()
+        assert exc_info.value.reason == "Tenant not found"
 
-    async def test_unknown_tenant_raises_not_found(self, store: InMemoryTenantStore) -> None:
+    async def test_unknown_tenant_raises_resolution_error(self, store: InMemoryTenantStore) -> None:
+        """Unknown tenant folded into TenantResolutionError — anti-enumeration."""
         resolver = PathTenantResolver(store, path_prefix="/tenants")
         request = _make_request(path="/tenants/nonexistent-co/resource")
-        with pytest.raises(TenantNotFoundError):
+        with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+        assert exc_info.value.strategy == "path"
 
     async def test_sets_path_remainder_on_state(self, store: InMemoryTenantStore) -> None:
         resolver = PathTenantResolver(store, path_prefix="/tenants")
@@ -399,7 +559,10 @@ class TestJWTTenantResolver:
         request = _make_request(headers={"Authorization": f"Bearer {token}"})  # type: ignore[str-bytes-safe]
         with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
-        assert "tenant_id" in exc_info.value.reason
+        # Generic reason — see anti-enumeration invariant.  The specific claim
+        # name is still surfaced in details for operator debugging.
+        assert exc_info.value.reason == "Tenant not found"
+        assert exc_info.value.details.get("claim") == "tenant_id"
 
     async def test_resolve_claim_not_string(self, store: InMemoryTenantStore) -> None:
         """If the claim is an integer rather than a string, resolution must fail."""
@@ -415,7 +578,8 @@ class TestJWTTenantResolver:
         request = _make_request(headers={"Authorization": f"Bearer {token}"})  # type: ignore[str-bytes-safe]
         with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
-        assert "invalid" in exc_info.value.reason.lower()
+        # Generic reason — see anti-enumeration invariant.
+        assert exc_info.value.reason == "Tenant not found"
 
     async def test_resolve_valid_jwt(self, store: InMemoryTenantStore) -> None:
         resolver = JWTTenantResolver(store, secret=_JWT_SECRET)
@@ -428,14 +592,17 @@ class TestJWTTenantResolver:
         tenant = await resolver.resolve(request)
         assert tenant.identifier == "acme-corp"
 
-    async def test_resolve_unknown_tenant_raises_not_found(
+    async def test_resolve_unknown_tenant_raises_resolution_error(
         self, store: InMemoryTenantStore
     ) -> None:
+        """Unknown tenant folded into TenantResolutionError — anti-enumeration."""
         resolver = JWTTenantResolver(store, secret=_JWT_SECRET)
         token = pyjwt.encode({"tenant_id": "no-such-tenant"}, _JWT_SECRET, algorithm="HS256")
         request = _make_request(headers={"Authorization": f"Bearer {token}"})  # type: ignore[str-bytes-safe]
-        with pytest.raises(TenantNotFoundError):
+        with pytest.raises(TenantResolutionError) as exc_info:
             await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+        assert exc_info.value.strategy == "jwt"
 
     async def test_resolve_custom_claim(self, store: InMemoryTenantStore) -> None:
         resolver = JWTTenantResolver(store, secret=_JWT_SECRET, tenant_claim="org")
@@ -664,3 +831,372 @@ class TestJWTAudienceValidation:
         store = InMemoryTenantStore()
         resolver = JWTTenantResolver(store, secret=_JWT_SECRET, audience=None)
         assert resolver._audience is None
+
+
+class TestJWTResolverRejectsAlgorithmNone:
+    """FIX (S2): JWTTenantResolver rejects ``algorithm='none'`` at construction.
+
+    Before the fix:
+        The constructor accepted any algorithm string and stored it.  At
+        decode time PyJWT's ``algorithms=[self._algorithm]`` pin catches an
+        unsigned token (because no algorithm named "none" can verify a
+        signature), but a programmer reading the source would not realise
+        they were one constructor argument away from a vulnerability.  A
+        copy-paste from a JWT debugger, a typo, or a mis-merged config
+        could land a silent ``algorithm='none'`` in production.
+
+    After the fix:
+        Constructor raises ``ValueError`` immediately when
+        ``algorithm`` is empty, whitespace, or any case-variant of
+        ``"none"``.  The failure is loud and at startup.
+    """
+
+    def test_lowercase_none_rejected(self) -> None:
+        store = InMemoryTenantStore()
+        with pytest.raises(ValueError, match="algorithm='none' is not permitted"):
+            JWTTenantResolver(store, secret=_JWT_SECRET, algorithm="none")
+
+    def test_uppercase_none_rejected(self) -> None:
+        """Case-insensitive — PyJWT itself uppercases ``none`` in some paths,
+        so ``"NONE"`` must be rejected too."""
+        store = InMemoryTenantStore()
+        with pytest.raises(ValueError, match="algorithm='NONE' is not permitted"):
+            JWTTenantResolver(store, secret=_JWT_SECRET, algorithm="NONE")
+
+    def test_mixed_case_none_rejected(self) -> None:
+        store = InMemoryTenantStore()
+        with pytest.raises(ValueError, match="algorithm='None' is not permitted"):
+            JWTTenantResolver(store, secret=_JWT_SECRET, algorithm="None")
+
+    def test_padded_none_rejected(self) -> None:
+        """Surrounding whitespace must not bypass the check."""
+        store = InMemoryTenantStore()
+        with pytest.raises(ValueError, match="algorithm='  none  ' is not permitted"):
+            JWTTenantResolver(store, secret=_JWT_SECRET, algorithm="  none  ")
+
+    def test_empty_algorithm_rejected(self) -> None:
+        """An empty algorithm is just as dangerous (PyJWT would refuse it but
+        the failure should be at construction, not first request)."""
+        store = InMemoryTenantStore()
+        with pytest.raises(ValueError, match="algorithm='' is not permitted"):
+            JWTTenantResolver(store, secret=_JWT_SECRET, algorithm="")
+
+    def test_none_in_rotation_list_rejected(self) -> None:
+        """Algorithm rotation list (e.g. RS256 → ES256 migration) is fine, but
+        accidentally including ``"none"`` in the list must be rejected."""
+        store = InMemoryTenantStore()
+        with pytest.raises(ValueError, match="algorithm='none' is not permitted"):
+            JWTTenantResolver(store, secret=_JWT_SECRET, algorithm=["HS256", "none"])
+
+    def test_empty_algorithm_list_rejected(self) -> None:
+        """An empty list is just as nonsensical as an empty string."""
+        store = InMemoryTenantStore()
+        with pytest.raises(ValueError, match="non-empty string or list"):
+            JWTTenantResolver(store, secret=_JWT_SECRET, algorithm=[])
+
+    def test_algorithm_rotation_list_accepted(self) -> None:
+        """Passing a list of valid signing algorithms is the rotation path."""
+        store = InMemoryTenantStore()
+        resolver = JWTTenantResolver(store, secret=_JWT_SECRET, algorithm=["HS256", "HS512"])
+        assert resolver._algorithms == ["HS256", "HS512"]
+        # Back-compat: ``_algorithm`` still reads the first element.
+        assert resolver._algorithm == "HS256"
+
+    def test_real_algorithms_accepted(self) -> None:
+        """Common signing algorithms must construct without raising."""
+        store = InMemoryTenantStore()
+        for alg in ["HS256", "HS384", "HS512", "RS256", "ES256"]:
+            resolver = JWTTenantResolver(store, secret=_JWT_SECRET, algorithm=alg)
+            assert resolver._algorithm == alg
+
+    async def test_unsigned_token_would_be_rejected_end_to_end(self) -> None:
+        """End-to-end check: even when somebody constructs the resolver with
+        a real algorithm, a token signed as ``alg=none`` must not validate.
+        PyJWT enforces this; the test pins the upstream contract."""
+        store = InMemoryTenantStore()
+        await store.create(_make_tenant("e2e-tenant"))
+        resolver = JWTTenantResolver(store, secret=_JWT_SECRET, algorithm="HS256")
+
+        # Hand-build an unsigned JWT: header.payload.<empty-sig>
+        import base64  # noqa: PLC0415
+        import json  # noqa: PLC0415
+
+        def _b64(payload: dict[str, Any]) -> str:
+            raw = json.dumps(payload, separators=(",", ":")).encode()
+            return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+
+        unsigned = (
+            _b64({"alg": "none", "typ": "JWT"})
+            + "."
+            + _b64({"tenant_id": "e2e-tenant"})
+            + "."  # empty signature
+        )
+        request = _make_request(headers={"Authorization": f"Bearer {unsigned}"})
+        with pytest.raises(TenantResolutionError):
+            await resolver.resolve(request)
+
+
+class TestSubdomainResolverEnumeration:
+    """FIX: Missing/invalid subdomain and unknown tenant all return the same
+    reason — the anti-enumeration invariant previously only held for the
+    header resolver; the subdomain resolver leaked a 404 on unknown-tenant."""
+
+    @pytest.fixture
+    async def seeded_store(self) -> InMemoryTenantStore:
+        s = InMemoryTenantStore()
+        await s.create(_make_tenant("known-co"))
+        return s
+
+    async def test_no_host_header_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = SubdomainTenantResolver(seeded_store, domain_suffix=".example.com")
+        scope: dict[str, Any] = {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "query_string": b"",
+            "headers": [],
+        }
+
+        async def receive() -> dict[str, Any]:
+            return {"type": "http.request", "body": b""}
+
+        request = Request(scope, receive)
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+
+    async def test_host_without_suffix_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = SubdomainTenantResolver(seeded_store, domain_suffix=".example.com")
+        request = _make_request(host="known-co.different.com")
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+
+    async def test_invalid_subdomain_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = SubdomainTenantResolver(seeded_store, domain_suffix=".example.com")
+        # "1a" — too short and starts with a digit, fails validate_tenant_identifier
+        request = _make_request(host="1a.example.com")
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+
+    async def test_unknown_tenant_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = SubdomainTenantResolver(seeded_store, domain_suffix=".example.com")
+        request = _make_request(host="never-seen-co.example.com")
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+        assert exc_info.value.strategy == "subdomain"
+
+    async def test_all_failure_modes_indistinguishable(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        """Missing host, wrong suffix, invalid subdomain and unknown tenant
+        all produce the same reason — caller cannot tell from the response
+        which case applied."""
+        resolver = SubdomainTenantResolver(seeded_store, domain_suffix=".example.com")
+
+        reasons: list[str] = []
+        cases: list[dict[str, str]] = [
+            {"host": "known-co.different.com"},  # wrong suffix
+            {"host": "1a.example.com"},  # invalid subdomain
+            {"host": "never-seen-co.example.com"},  # unknown tenant
+        ]
+        for case in cases:
+            request = _make_request(host=case["host"])
+            with pytest.raises(TenantResolutionError) as exc_info:
+                await resolver.resolve(request)
+            reasons.append(exc_info.value.reason)
+
+        assert len(set(reasons)) == 1, f"Expected all same reason, got: {reasons}"
+
+    async def test_valid_tenant_resolves_successfully(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = SubdomainTenantResolver(seeded_store, domain_suffix=".example.com")
+        request = _make_request(host="known-co.example.com")
+        resolved = await resolver.resolve(request)
+        assert resolved.identifier == "known-co"
+
+
+class TestPathResolverEnumeration:
+    """FIX: Missing prefix, missing/invalid identifier and unknown tenant all
+    return the same reason — previously an unknown tenant leaked a 404."""
+
+    @pytest.fixture
+    async def seeded_store(self) -> InMemoryTenantStore:
+        s = InMemoryTenantStore()
+        await s.create(_make_tenant("known-co"))
+        return s
+
+    async def test_wrong_prefix_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = PathTenantResolver(seeded_store, path_prefix="/tenants")
+        request = _make_request(path="/api/users")
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+
+    async def test_empty_identifier_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = PathTenantResolver(seeded_store, path_prefix="/tenants")
+        request = _make_request(path="/tenants/")
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+
+    async def test_invalid_identifier_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = PathTenantResolver(seeded_store, path_prefix="/tenants")
+        request = _make_request(path="/tenants/INVALID_SLUG/resource")
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+
+    async def test_unknown_tenant_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = PathTenantResolver(seeded_store, path_prefix="/tenants")
+        request = _make_request(path="/tenants/never-seen-co/resource")
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+        assert exc_info.value.strategy == "path"
+
+    async def test_all_failure_modes_indistinguishable(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        """Wrong prefix, empty identifier, invalid format and unknown tenant
+        all produce the same reason."""
+        resolver = PathTenantResolver(seeded_store, path_prefix="/tenants")
+
+        reasons: list[str] = []
+        for path in [
+            "/api/users",  # wrong prefix
+            "/tenants/",  # empty identifier
+            "/tenants/INVALID_SLUG/resource",  # invalid format
+            "/tenants/never-seen-co/resource",  # unknown tenant
+        ]:
+            request = _make_request(path=path)
+            with pytest.raises(TenantResolutionError) as exc_info:
+                await resolver.resolve(request)
+            reasons.append(exc_info.value.reason)
+
+        assert len(set(reasons)) == 1, f"Expected all same reason, got: {reasons}"
+
+    async def test_valid_tenant_resolves_successfully(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = PathTenantResolver(seeded_store, path_prefix="/tenants")
+        request = _make_request(path="/tenants/known-co/resource")
+        resolved = await resolver.resolve(request)
+        assert resolved.identifier == "known-co"
+
+
+class TestJWTResolverEnumeration:
+    """FIX: Missing/invalid tenant claim and unknown tenant all return the
+    same reason — previously an unknown tenant leaked a 404 to anyone holding
+    a validly-signed token, allowing tenant-slug enumeration via forged JWTs.
+
+    Token-validity errors (expired, bad signature, audience mismatch) keep
+    their specific reasons because they describe the *token*, not the
+    *tenant*; folding them would also hide debugging info from operators."""
+
+    @pytest.fixture
+    async def seeded_store(self) -> InMemoryTenantStore:
+        s = InMemoryTenantStore()
+        await s.create(_make_tenant("known-co"))
+        return s
+
+    def _bearer(self, payload: dict[str, Any]) -> dict[str, str]:
+        raw: Any = pyjwt.encode(payload, _JWT_SECRET, algorithm="HS256")
+        # PyJWT >= 2 returns str; the stubs still describe bytes.
+        token = raw.decode() if isinstance(raw, bytes) else raw
+        return {"Authorization": f"Bearer {token}"}
+
+    async def test_missing_tenant_claim_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = JWTTenantResolver(seeded_store, secret=_JWT_SECRET)
+        request = _make_request(headers=self._bearer({"user_id": "u123"}))
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+
+    async def test_invalid_identifier_in_claim_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = JWTTenantResolver(seeded_store, secret=_JWT_SECRET)
+        request = _make_request(headers=self._bearer({"tenant_id": "UPPER-CASE!!"}))
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+
+    async def test_unknown_tenant_raises_resolution_error(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = JWTTenantResolver(seeded_store, secret=_JWT_SECRET)
+        request = _make_request(headers=self._bearer({"tenant_id": "never-seen-co"}))
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert exc_info.value.reason == "Tenant not found"
+        assert exc_info.value.strategy == "jwt"
+
+    async def test_identifier_failures_indistinguishable(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        """Missing claim, invalid format and unknown tenant all produce the
+        same reason — caller cannot tell which case applied."""
+        resolver = JWTTenantResolver(seeded_store, secret=_JWT_SECRET)
+
+        reasons: list[str] = []
+        for payload in [
+            {"user_id": "u123"},  # missing claim
+            {"tenant_id": "UPPER-CASE!!"},  # invalid format
+            {"tenant_id": "never-seen-co"},  # unknown tenant
+        ]:
+            request = _make_request(headers=self._bearer(payload))
+            with pytest.raises(TenantResolutionError) as exc_info:
+                await resolver.resolve(request)
+            reasons.append(exc_info.value.reason)
+
+        assert len(set(reasons)) == 1, f"Expected all same reason, got: {reasons}"
+
+    async def test_token_validity_errors_keep_specific_reasons(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        """Bearer-scheme and signature errors describe the token, not the
+        tenant — they keep their specific reasons (operator debugging value
+        without enumeration risk)."""
+        resolver = JWTTenantResolver(seeded_store, secret=_JWT_SECRET)
+
+        # Missing Authorization header.
+        request = _make_request(headers={})
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert "authorization header is missing" in exc_info.value.reason.lower()
+
+        # Non-Bearer scheme.
+        request = _make_request(headers={"Authorization": "Basic dXNlcjpwYXNz"})
+        with pytest.raises(TenantResolutionError) as exc_info:
+            await resolver.resolve(request)
+        assert "bearer" in exc_info.value.reason.lower()
+
+    async def test_valid_tenant_resolves_successfully(
+        self, seeded_store: InMemoryTenantStore
+    ) -> None:
+        resolver = JWTTenantResolver(seeded_store, secret=_JWT_SECRET)
+        request = _make_request(headers=self._bearer({"tenant_id": "known-co"}))
+        resolved = await resolver.resolve(request)
+        assert resolved.identifier == "known-co"

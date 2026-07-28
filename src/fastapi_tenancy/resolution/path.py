@@ -25,7 +25,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi_tenancy.core.exceptions import TenantResolutionError
+from fastapi_tenancy.core.exceptions import TenantNotFoundError, TenantResolutionError
 from fastapi_tenancy.resolution.base import BaseTenantResolver
 from fastapi_tenancy.utils.validation import validate_tenant_identifier
 
@@ -36,6 +36,8 @@ if TYPE_CHECKING:
     from fastapi_tenancy.storage.tenant_store import TenantStore
 
 logger = logging.getLogger(__name__)
+
+_GENERIC_REASON = "Tenant not found"
 
 
 class PathTenantResolver(BaseTenantResolver):
@@ -75,32 +77,25 @@ class PathTenantResolver(BaseTenantResolver):
             Resolved :class:`~fastapi_tenancy.core.types.Tenant`.
 
         Raises:
-            TenantResolutionError: When the path does not match the expected
-                format or the identifier fails validation.
-            TenantNotFoundError: When the identifier has no matching tenant.
+            TenantResolutionError: On any failure — missing prefix, missing
+                identifier, invalid format, or unknown tenant.  All failure
+                modes share the same generic reason so callers cannot
+                enumerate valid tenant identifiers by status-code or message
+                comparison (anti-enumeration invariant).
         """
         path = request.url.path
         prefix_with_slash = self._prefix.rstrip("/") + "/"
 
         if not path.startswith(prefix_with_slash):
-            raise TenantResolutionError(
-                reason=(f"Path {path!r} does not start with expected prefix {prefix_with_slash!r}"),
-                strategy="path",
-            )
+            raise TenantResolutionError(reason=_GENERIC_REASON, strategy="path")
 
         remainder = path[len(prefix_with_slash) :]
         # The identifier is the first path segment after the prefix.
         identifier = remainder.split("/")[0]
         if not identifier:
-            raise TenantResolutionError(
-                reason=f"No tenant identifier found after prefix {self._prefix!r}",
-                strategy="path",
-            )
+            raise TenantResolutionError(reason=_GENERIC_REASON, strategy="path")
         if not validate_tenant_identifier(identifier):
-            raise TenantResolutionError(
-                reason=f"Path segment {identifier!r} is not a valid tenant identifier",
-                strategy="path",
-            )
+            raise TenantResolutionError(reason=_GENERIC_REASON, strategy="path")
 
         # Store the remainder (path after the tenant segment) on request state
         # for downstream handlers that need it.
@@ -108,7 +103,13 @@ class PathTenantResolver(BaseTenantResolver):
         request.state.tenant_path_remainder = path_after_tenant or "/"
 
         logger.debug("Path resolver: path=%r → identifier=%r", path, identifier)
-        return await self.store.get_by_identifier(identifier)
+        try:
+            return await self.store.get_by_identifier(identifier)
+        except TenantNotFoundError:
+            # Re-raise as TenantResolutionError so the middleware returns the
+            # same status as missing/invalid identifiers — a 404 would confirm
+            # to callers that the identifier format is valid.
+            raise TenantResolutionError(reason=_GENERIC_REASON, strategy="path")  # noqa: B904
 
 
 __all__ = ["PathTenantResolver"]

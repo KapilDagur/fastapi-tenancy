@@ -168,6 +168,8 @@ def make_tenant_config_dependency(
 
 def make_audit_log_dependency(
     manager: TenancyManager,
+    *,
+    trust_x_forwarded_for: bool = False,
 ) -> Any:
     """Create a FastAPI dependency that provides an audit-log writer function.
 
@@ -186,6 +188,20 @@ def make_audit_log_dependency(
 
     Args:
         manager: The configured :class:`~fastapi_tenancy.manager.TenancyManager`.
+        trust_x_forwarded_for: When ``True``, the audit record's ``ip_address``
+            is taken from the **leftmost** entry of ``X-Forwarded-For`` if
+            present, falling back to ``request.client.host``.  **Default:
+            ``False``** — opt-in only.
+
+            ``X-Forwarded-For`` is freely forgeable by any client.  Trusting
+            it without a reverse proxy that strips and rewrites the header
+            lets an attacker forge the IP recorded in audit logs and frame
+            another user during an incident review.
+
+            Enable this only when every request flows through a reverse
+            proxy you control that sets ``X-Forwarded-For`` itself
+            (e.g. nginx ``proxy_set_header X-Forwarded-For $remote_addr``,
+            AWS ALB / Cloudflare, Envoy).
 
     Returns:
         An async function that returns a write-audit-log callable.
@@ -208,7 +224,20 @@ def make_audit_log_dependency(
         """
         # Capture request-level context once so the inner ``log``
         # closure does not need to re-read request headers on every call.
-        client_ip: str | None = request.client.host if request.client else None
+        client_ip: str | None = None
+        if trust_x_forwarded_for:
+            # Trusted-proxy mode: prefer the leftmost X-Forwarded-For entry.
+            # Header format per RFC 7239 / de-facto: "client, proxy1, proxy2".
+            xff = request.headers.get("x-forwarded-for", "")
+            if xff:
+                first = xff.split(",")[0].strip()
+                if first:
+                    client_ip = first
+        if client_ip is None:
+            # Fall back to the transport-level client (the proxy, when
+            # one is in front of us; the real client otherwise).
+            client_ip = request.client.host if request.client else None
+
         user_agent: str | None = request.headers.get("user-agent")
 
         async def log(

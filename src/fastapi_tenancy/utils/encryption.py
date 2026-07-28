@@ -45,6 +45,31 @@ Encrypted values are stored as ASCII strings prefixed with ``"enc::"`` so that:
 * The layer that reads the value can detect at runtime whether to decrypt.
 * The prefix is not a secret — the ciphertext itself provides authenticity.
 
+Key rotation
+------------
+This module derives a **single** Fernet key from ``config.encryption_key``.
+Changing the key value invalidates every existing ciphertext — the
+``enc::`` prefix distinguishes ciphertext from plaintext but not *which
+key produced it*.
+
+The currently-supported rotation procedure is manual and requires a
+short maintenance window for tenant writes:
+
+1. Stop tenant writes (most apps accept a brief maintenance window).
+2. Read every tenant under the old key (current config).
+3. Switch the deploy to ``enable_encryption=False`` temporarily so
+   reads return plaintext (Fernet's ``decrypt`` is idempotent on
+   plaintext; the new key would refuse old ciphertext).
+4. Re-run ``manager.store.update(tenant)`` for every tenant — the proxy
+   re-encrypts on write with the new key.
+5. Switch back to ``enable_encryption=True`` with the new key.
+
+A dual-key configuration field (``encryption_key_secondary``) that would
+allow reading with either of two keys while writing with the primary is
+planned for a future release.  See
+``docs/guides/security-model.md#key-rotation`` for the operational
+procedure and threat-model context.
+
 Usage
 -----
 ::
@@ -190,6 +215,80 @@ class TenancyEncryption:
             ``True`` when the value starts with the encryption prefix.
         """
         return value.startswith(_ENCRYPTED_PREFIX)
+
+    def find_plaintext_enc_keys(self, metadata: dict[str, Any]) -> list[str]:
+        """Return the names of ``_enc_*`` keys in *metadata* that are plaintext.
+
+        Audit helper for the encryption-at-rest invariant.  ``update_metadata``
+        only encrypts keys present in the patch; pre-existing plaintext
+        ``_enc_*`` values from before encryption was enabled stay plaintext
+        until rewritten.  Use this to scan a tenant row (or every row, via
+        ``store.list()`` in admin tooling) before declaring "encryption-at-
+        rest enforced":
+
+        .. code-block:: python
+
+            for tenant in await store.list(limit=10_000):
+                bad = enc.find_plaintext_enc_keys(tenant.metadata)
+                if bad:
+                    logger.error("Tenant %s has plaintext _enc_*: %s", tenant.id, bad)
+
+        Args:
+            metadata: A tenant ``metadata`` dict as returned by the store.
+
+        Returns:
+            Sorted list of top-level keys that start with ``_enc_``, hold a
+            string value, and are *not* already in ciphertext form.  Empty
+            list means the row satisfies the invariant.
+        """
+        return sorted(
+            key
+            for key, value in metadata.items()
+            if (
+                key.startswith(_ENC_METADATA_PREFIX)
+                and isinstance(value, str)
+                and not self.is_encrypted(value)
+            )
+        )
+
+    def encrypt_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        """Return a copy of *metadata* with ``_enc_*`` string values encrypted.
+
+        This is the metadata-only counterpart to :meth:`encrypt_tenant_fields`,
+        intended for write paths that mutate metadata directly (e.g.
+        ``TenantStore.update_metadata``) rather than constructing a full
+        ``Tenant`` object first.  Without this step, a caller adding a new
+        ``_enc_*`` key via the partial-update path would land plaintext in
+        the database alongside legacy encrypted keys.
+
+        Idempotent — already-encrypted values are passed through unchanged.
+
+        **Shallow only.**  Only *top-level* keys of *metadata* are inspected.
+        Nested values (``{"_enc_creds": {"api_key": "..."}}``) are passed
+        through unchanged — the inner ``api_key`` is *not* encrypted because
+        the value at ``_enc_creds`` is a dict, not a string.  The ``_enc_*``
+        convention is intentionally flat: store sensitive secrets as
+        top-level string keys (``_enc_api_key``, ``_enc_db_password``), not
+        nested under structured containers.
+
+        Args:
+            metadata: Partial metadata dict to merge into the tenant.
+
+        Returns:
+            A new dict where every *top-level* key starting with ``_enc_``
+            and holding a *string* value is encrypted.  Non-``_enc_*`` keys
+            and non-string values (including nested dicts) are passed
+            through unchanged.
+        """
+        out: dict[str, Any] = dict(metadata)
+        for key, value in metadata.items():
+            if (
+                key.startswith(_ENC_METADATA_PREFIX)
+                and isinstance(value, str)
+                and not self.is_encrypted(value)
+            ):
+                out[key] = self.encrypt(value)
+        return out
 
     def encrypt_tenant_fields(self, tenant: Any) -> Any:
         """Return a copy of *tenant* with sensitive fields encrypted.

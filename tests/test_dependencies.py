@@ -526,3 +526,265 @@ class TestAuditLogIpAndUserAgent:
         assert captured[0].tenant_id == t.id
         assert captured[0].action == "read"
         assert captured[0].resource == "order"
+
+
+class TestAuditLogTrustXForwardedFor:
+    """FIX (S3): make_audit_log_dependency opts into ``X-Forwarded-For``.
+
+    Before the fix:
+        ``ip_address`` was always ``request.client.host``.  Behind a reverse
+        proxy this is the proxy's address, not the real client's — forensic
+        audit logs become useless during an incident review because every
+        entry shows the proxy IP.
+
+    After the fix:
+        Constructor accepts ``trust_x_forwarded_for=True`` (opt-in, default
+        ``False``).  When enabled, the leftmost entry of ``X-Forwarded-For``
+        is preferred over ``request.client.host``.  The header is forgeable
+        without a trusted proxy, so the default stays safe.
+    """
+
+    def _app_with_audit(
+        self,
+        manager: TenancyManager,
+        captured: list[Any],
+        *,
+        trust_x_forwarded_for: bool = False,
+    ) -> FastAPI:
+        from fastapi_tenancy.middleware.tenancy import TenancyMiddleware  # noqa: PLC0415
+
+        get_audit = make_audit_log_dependency(manager, trust_x_forwarded_for=trust_x_forwarded_for)
+
+        async def _capture_write(entry: Any) -> None:
+            captured.append(entry)
+
+        manager.write_audit_log = _capture_write  # type: ignore[method-assign]
+
+        app = FastAPI()
+        app.add_middleware(TenancyMiddleware, manager=manager, excluded_paths=[])
+
+        @app.get("/audit")
+        async def audit_endpoint(log=Depends(get_audit)) -> dict[str, Any]:  # type: ignore[no-untyped-def]
+            await log(action="read", resource="order")
+            return {"ok": True}
+
+        return app
+
+    async def test_default_ignores_x_forwarded_for(self) -> None:
+        """Without opt-in, an attacker-supplied XFF must NOT end up in audit logs."""
+        t = _tenant("audit-default-xff")
+        store = InMemoryTenantStore()
+        await store.create(t)
+        manager = TenancyManager(_cfg(), store)
+        await manager.initialize()
+
+        captured: list[Any] = []
+        app = self._app_with_audit(manager, captured)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://testserver",
+            headers={
+                "X-Tenant-ID": "audit-default-xff",
+                "X-Forwarded-For": "203.0.113.42, 10.0.0.1",  # attacker-supplied
+            },
+        ) as client:
+            resp = await client.get("/audit")
+
+        await manager.close()
+        assert resp.status_code == 200
+        assert len(captured) == 1
+        # The recorded IP must NOT be the attacker's value.
+        assert captured[0].ip_address != "203.0.113.42", (
+            "Default audit log dep trusted X-Forwarded-For — log forgery possible"
+        )
+
+    async def test_opt_in_uses_leftmost_xff_entry(self) -> None:
+        """With opt-in, the leftmost XFF entry (the original client) wins."""
+        t = _tenant("audit-xff-on")
+        store = InMemoryTenantStore()
+        await store.create(t)
+        manager = TenancyManager(_cfg(), store)
+        await manager.initialize()
+
+        captured: list[Any] = []
+        app = self._app_with_audit(manager, captured, trust_x_forwarded_for=True)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://testserver",
+            headers={
+                "X-Tenant-ID": "audit-xff-on",
+                # Leftmost entry is the originating client.
+                "X-Forwarded-For": "198.51.100.7, 10.0.0.1, 10.0.0.2",
+            },
+        ) as client:
+            resp = await client.get("/audit")
+
+        await manager.close()
+        assert resp.status_code == 200
+        assert captured[0].ip_address == "198.51.100.7"
+
+    async def test_opt_in_with_no_xff_falls_back_to_request_client(self) -> None:
+        """When XFF is absent, fall back to request.client.host even with opt-in."""
+        t = _tenant("audit-xff-fallback")
+        store = InMemoryTenantStore()
+        await store.create(t)
+        manager = TenancyManager(_cfg(), store)
+        await manager.initialize()
+
+        captured: list[Any] = []
+        app = self._app_with_audit(manager, captured, trust_x_forwarded_for=True)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://testserver",
+            headers={"X-Tenant-ID": "audit-xff-fallback"},
+        ) as client:
+            resp = await client.get("/audit")
+
+        await manager.close()
+        assert resp.status_code == 200
+        # Falls back to transport-level client (ASGITransport sets it).
+        assert captured[0].ip_address is not None
+
+    async def test_opt_in_with_empty_xff_falls_back(self) -> None:
+        """An explicit empty XFF must not produce an empty-string ip_address."""
+        t = _tenant("audit-xff-empty")
+        store = InMemoryTenantStore()
+        await store.create(t)
+        manager = TenancyManager(_cfg(), store)
+        await manager.initialize()
+
+        captured: list[Any] = []
+        app = self._app_with_audit(manager, captured, trust_x_forwarded_for=True)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://testserver",
+            headers={
+                "X-Tenant-ID": "audit-xff-empty",
+                "X-Forwarded-For": "",
+            },
+        ) as client:
+            await client.get("/audit")
+
+        await manager.close()
+        # Falls back to request.client.host; must not be empty string.
+        assert captured[0].ip_address != ""
+        assert captured[0].ip_address is not None
+
+    async def test_opt_in_whitespace_only_first_entry_falls_back(self) -> None:
+        """An XFF entry that is just whitespace must not be treated as a valid IP."""
+        t = _tenant("audit-xff-ws")
+        store = InMemoryTenantStore()
+        await store.create(t)
+        manager = TenancyManager(_cfg(), store)
+        await manager.initialize()
+
+        captured: list[Any] = []
+        app = self._app_with_audit(manager, captured, trust_x_forwarded_for=True)
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://testserver",
+            headers={
+                "X-Tenant-ID": "audit-xff-ws",
+                "X-Forwarded-For": "   , 10.0.0.1",
+            },
+        ) as client:
+            await client.get("/audit")
+
+        await manager.close()
+        # Stripped leftmost entry was empty — must fall back to request.client.
+        assert captured[0].ip_address != ""
+        assert captured[0].ip_address is not None
+        # And specifically: not the proxy at 10.0.0.1, because we stop at the
+        # first entry rather than walking the chain.
+        assert captured[0].ip_address != "10.0.0.1"
+
+
+class TestAuditLogRequestClientNone:
+    """Regression: ``request.client`` is ``None`` under some ASGI transports
+    (lifespan-only test transports, raw scope construction, certain proxy
+    integrations).  The audit-log dependency must not crash with
+    ``AttributeError`` — it must record ``ip_address=None`` and proceed."""
+
+    async def test_request_client_none_yields_ip_address_none(self) -> None:
+        """Construct the dependency manually, hand it a Request whose scope
+        omits the ``client`` key, and verify the audit entry is well-formed
+        with ``ip_address=None``."""
+        from starlette.requests import Request  # noqa: PLC0415
+
+        t = _tenant("audit-no-client")
+        store = InMemoryTenantStore()
+        await store.create(t)
+        manager = TenancyManager(_cfg(), store)
+        await manager.initialize()
+
+        captured: list[Any] = []
+
+        async def _capture_write(entry: Any) -> None:
+            captured.append(entry)
+
+        manager.write_audit_log = _capture_write  # type: ignore[method-assign]
+
+        get_audit = make_audit_log_dependency(manager)
+        # Scope intentionally omits the "client" key — Starlette's
+        # request.client returns None in that case.
+        scope: dict[str, Any] = {
+            "type": "http",
+            "method": "GET",
+            "path": "/audit",
+            "headers": [(b"user-agent", b"unit-test/1.0")],
+            "query_string": b"",
+        }
+        request = Request(scope)
+        assert request.client is None
+
+        log = await get_audit(request=request, tenant=t)
+        await log(action="read", resource="order")
+
+        await manager.close()
+        assert len(captured) == 1
+        assert captured[0].ip_address is None
+        assert captured[0].user_agent == "unit-test/1.0"
+
+    async def test_request_client_none_with_xff_trust_uses_xff(self) -> None:
+        """When trust_x_forwarded_for=True and request.client is None, the
+        XFF header is still the source of truth — the defensive None guard
+        must not bypass the XFF path."""
+        from starlette.requests import Request  # noqa: PLC0415
+
+        t = _tenant("audit-no-client-xff")
+        store = InMemoryTenantStore()
+        await store.create(t)
+        manager = TenancyManager(_cfg(), store)
+        await manager.initialize()
+
+        captured: list[Any] = []
+
+        async def _capture_write(entry: Any) -> None:
+            captured.append(entry)
+
+        manager.write_audit_log = _capture_write  # type: ignore[method-assign]
+
+        get_audit = make_audit_log_dependency(manager, trust_x_forwarded_for=True)
+        scope: dict[str, Any] = {
+            "type": "http",
+            "method": "GET",
+            "path": "/audit",
+            "headers": [
+                (b"x-forwarded-for", b"203.0.113.7, 10.0.0.1"),
+            ],
+            "query_string": b"",
+        }
+        request = Request(scope)
+        assert request.client is None
+
+        log = await get_audit(request=request, tenant=t)
+        await log(action="read", resource="order")
+
+        await manager.close()
+        assert len(captured) == 1
+        assert captured[0].ip_address == "203.0.113.7"

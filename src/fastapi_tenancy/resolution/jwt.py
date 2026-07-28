@@ -29,7 +29,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from fastapi_tenancy.core.exceptions import TenantResolutionError
+from fastapi_tenancy.core.exceptions import TenantNotFoundError, TenantResolutionError
 from fastapi_tenancy.resolution.base import BaseTenantResolver
 from fastapi_tenancy.utils.validation import validate_tenant_identifier
 
@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _BEARER_PREFIX = "Bearer "
+_GENERIC_REASON = "Tenant not found"
 
 
 class JWTTenantResolver(BaseTenantResolver):
@@ -83,11 +84,38 @@ class JWTTenantResolver(BaseTenantResolver):
         self,
         store: TenantStore[Tenant],
         secret: str,
-        algorithm: str = "HS256",
+        algorithm: str | list[str] = "HS256",
         tenant_claim: str = "tenant_id",
         audience: str | None = None,
     ) -> None:
         super().__init__(store)
+
+        # Normalise to a list so we can support rotation (e.g. RS256 → ES256
+        # migration with both keys valid for the transition window).  A
+        # single-string value remains backward compatible; PyJWT.decode
+        # accepts ``algorithms=[...]`` natively.
+        algorithms = [algorithm] if isinstance(algorithm, str) else list(algorithm)
+        if not algorithms:
+            msg = "JWTTenantResolver: algorithm must be a non-empty string or list."
+            raise ValueError(msg)
+
+        # Defence in depth against the JWT alg=none attack.  PyJWT will
+        # already refuse to decode an unsigned token when ``"none"`` is
+        # not in ``algorithms=[...]`` — but if the resolver itself is
+        # configured with ``algorithm="none"`` (typo, mis-merged config,
+        # copy-paste from a JWT debugger, *or* a rotation list that
+        # accidentally includes "none"), every request would be accepted
+        # without signature verification.  Reject every offending element
+        # at construction time so the failure is loud and at startup.
+        for alg in algorithms:
+            if not alg or alg.strip().lower() == "none":
+                msg = (
+                    f"JWTTenantResolver: algorithm={alg!r} is not permitted.  "
+                    "Unsigned JWTs would let any caller forge tenant identity.  "
+                    "Use a real signing algorithm (default: 'HS256')."
+                )
+                raise ValueError(msg)
+
         try:
             import jwt as _pyjwt  # noqa: PLC0415
 
@@ -99,7 +127,11 @@ class JWTTenantResolver(BaseTenantResolver):
             ) from exc
 
         self._secret = secret
-        self._algorithm = algorithm
+        # ``self._algorithm`` retains the first element for backward-compatible
+        # introspection (some test seams read it).  ``self._algorithms`` is
+        # the list actually passed to PyJWT.
+        self._algorithm = algorithms[0]
+        self._algorithms = algorithms
         self._tenant_claim = tenant_claim
         self._audience = audience
 
@@ -131,7 +163,7 @@ class JWTTenantResolver(BaseTenantResolver):
             # behaviour is identical to the pre-fix state for callers
             # that have not configured an audience yet.
             decode_kwargs: dict[str, Any] = {
-                "algorithms": [self._algorithm],
+                "algorithms": self._algorithms,
             }
             if self._audience is not None:
                 decode_kwargs["audience"] = self._audience
@@ -165,10 +197,15 @@ class JWTTenantResolver(BaseTenantResolver):
             Resolved :class:`~fastapi_tenancy.core.types.Tenant`.
 
         Raises:
-            TenantResolutionError: When the ``Authorization`` header is absent,
-                malformed, or the JWT is invalid / expired.
-            TenantNotFoundError: When the extracted identifier has no
-                matching tenant.
+            TenantResolutionError: On any failure — missing/malformed
+                Authorization header, invalid/expired JWT, audience mismatch,
+                missing/invalid tenant claim, or unknown tenant.  The
+                identifier-lookup failure is folded into the generic reason
+                shared with missing/invalid identifiers so callers cannot
+                enumerate tenant slugs by status-code or message comparison
+                (anti-enumeration invariant).  Token-validity errors
+                (expiry, signature, audience) keep their specific reasons
+                because they describe the *token*, not the *tenant*.
         """
         auth_header = request.headers.get("authorization", "")
         if not auth_header:
@@ -194,19 +231,30 @@ class JWTTenantResolver(BaseTenantResolver):
         identifier = payload.get(self._tenant_claim)
         if not identifier or not isinstance(identifier, str):
             raise TenantResolutionError(
-                reason=f"JWT payload is missing claim {self._tenant_claim!r}",
+                reason=_GENERIC_REASON,
                 strategy="jwt",
                 details={"claim": self._tenant_claim},
             )
         if not validate_tenant_identifier(identifier):
             raise TenantResolutionError(
-                reason=f"JWT claim {self._tenant_claim!r} contains an invalid tenant identifier",
+                reason=_GENERIC_REASON,
                 strategy="jwt",
                 details={"claim": self._tenant_claim},
             )
 
         logger.debug("JWT resolver: claim=%r → identifier=%r", self._tenant_claim, identifier)
-        return await self.store.get_by_identifier(identifier)
+        try:
+            return await self.store.get_by_identifier(identifier)
+        except TenantNotFoundError:
+            # Re-raise as TenantResolutionError with the same generic message
+            # so unknown-tenant returns the same status as missing/invalid
+            # claim — a 404 would confirm to the holder of a forged token
+            # that the claim format was valid.
+            raise TenantResolutionError(  # noqa: B904
+                reason=_GENERIC_REASON,
+                strategy="jwt",
+                details={"claim": self._tenant_claim},
+            )
 
 
 __all__ = ["JWTTenantResolver"]

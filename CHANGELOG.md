@@ -9,7 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Security & reliability fixes
 
-> Eighteen targeted fixes addressing rate-limit enforcement, concurrency safety,
+> Twenty-one targeted fixes addressing rate-limit enforcement, JWT algorithm
+> confusion, tenant enumeration, concurrency safety,
 > WebSocket error handling, JWT security hardening, connection-pool lifecycle,
 > per-tenant database naming, secret redaction, cache correctness, and
 > observability gaps.
@@ -338,6 +339,78 @@ boundary server-side, so every host observes one consistent clock. The host now
 sends only a uuid, which the script combines with the server timestamp into the
 unique sorted-set member. The `eval()` argument list shrank from 5 ARGVs to 3;
 this is internal, and `check_rate_limit()`'s signature is unchanged.
+
+**FIX 19 — `algorithm="none"` was accepted (`resolution/jwt.py`) ** SECURITY **
+
+PyJWT refuses an unsigned token only because `"none"` is absent from the
+`algorithms=[...]` list it is given. Nothing stopped the resolver itself from
+being constructed with `algorithm="none"` — a typo, a mis-merged config, a
+paste from a JWT debugger, or a rotation list that happened to include it. In
+that state every request is accepted with **no signature verification at all**,
+so any caller can forge tenant identity.
+
+Fix: every algorithm is checked at construction and `"none"` (any casing, plus
+empty values) raises `ValueError` immediately, so the failure is loud and at
+startup rather than silent and at request time.
+
+**FIX 20 — Unknown tenants were enumerable through three resolvers
+(`resolution/{jwt,path,subdomain}.py`) ** SECURITY **
+
+`HeaderTenantResolver` deliberately returns one generic reason for every
+failure mode so an attacker cannot tell "no such tenant" from "malformed
+identifier" — a 404 confirms the identifier format was valid. The JWT, path,
+and subdomain resolvers did not follow that invariant: they let
+`TenantNotFoundError` propagate (→ HTTP 404) and echoed specific reasons like
+`"Path segment 'x' is not a valid tenant identifier"`.
+
+Fix: all three now fold every failure — missing, malformed, and unknown — into
+the same generic `TenantResolutionError`, matching the header resolver.
+Token-validity errors (expiry, signature, audience) keep their specific reasons
+because they describe the *token*, not the tenant.
+
+Note this changes the response for an unknown tenant through these resolvers
+from **404 to 400**, which is the point of the fix.
+
+**FIX 21 — `X-Forwarded-Host` trusted by default with no signal
+(`resolution/subdomain.py`)**
+
+`trust_x_forwarded` defaults to `True`, so a deployment not behind a
+header-stripping proxy accepts `X-Forwarded-Host: victim.example.com` and
+resolves the wrong tenant — full tenant impersonation from one header.
+
+The default is **unchanged**, because flipping it would silently break every
+deployment that *is* behind a proxy. Instead the exposure is now visible: a
+`WARNING` is logged at construction whenever the header is trusted, and
+`trust_x_forwarded=False` is documented as the opt-out that blocks the spoof. A
+future major release will flip the default.
+
+### Added
+
+**`JWTTenantResolver` accepts a list of algorithms (`resolution/jwt.py`)**
+
+`algorithm=` now takes `str | list[str]`, so a key/algorithm rotation can keep
+two algorithms valid during the transition window. A plain string still works
+unchanged.
+
+**`TenancyEncryption.find_plaintext_enc_keys()` and `.encrypt_metadata()`
+(`utils/encryption.py`)**
+
+`update_metadata` only encrypts the keys present in the patch, so `_enc_*`
+values written before encryption was enabled stay plaintext until something
+rewrites them. `find_plaintext_enc_keys()` reports which `_enc_*` keys in a
+metadata dict are still plaintext, so admin tooling can verify the
+encryption-at-rest invariant instead of assuming it. The module also documents
+the manual key-rotation procedure, since a single derived key means changing
+`encryption_key` invalidates all existing ciphertext.
+
+**`make_audit_log_dependency(..., trust_x_forwarded_for=False)`
+(`dependencies.py`)**
+
+Opt-in use of the leftmost `X-Forwarded-For` entry as the audit record's
+`ip_address`. Default `False` preserves current behaviour exactly.
+`X-Forwarded-For` is client-forgeable, and trusting it without a rewriting
+proxy lets an attacker forge the IP in audit logs and frame another user during
+an incident review — so this is opt-in, not automatic.
 
 ### Changed
 

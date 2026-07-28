@@ -23,7 +23,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi_tenancy.core.exceptions import TenantResolutionError
+from fastapi_tenancy.core.exceptions import TenantNotFoundError, TenantResolutionError
 from fastapi_tenancy.resolution.base import BaseTenantResolver
 from fastapi_tenancy.utils.validation import validate_tenant_identifier
 
@@ -35,6 +35,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_GENERIC_REASON = "Tenant not found"
+
 
 class SubdomainTenantResolver(BaseTenantResolver):
     """Resolve the current tenant from the leftmost subdomain.
@@ -45,11 +47,33 @@ class SubdomainTenantResolver(BaseTenantResolver):
             strip the suffix before validation; if the host does not end
             with this suffix the resolver raises.
         trust_x_forwarded: Whether to read ``X-Forwarded-Host`` before
-            ``Host``.  Default ``True`` (assume trusted reverse proxy).
+            ``Host``.  Default ``True``.
+
+            .. danger:: Set this to ``False`` unless you are behind a proxy
+
+                ``X-Forwarded-Host`` is forgeable by any client unless a
+                trusted reverse proxy strips and overrides it.  With no proxy
+                — or a proxy that passes the client-supplied header through —
+                an attacker spoofs tenant identity outright by sending
+                ``X-Forwarded-Host: victim.example.com``, and every request
+                is then resolved as that tenant.
+
+                The default remains ``True`` for backward compatibility, and a
+                ``WARNING`` is logged at construction so the exposure is
+                visible.  Leave it on only when *all* incoming traffic flows
+                through a reverse proxy you control that sets the header
+                itself (nginx, AWS ALB, Cloudflare, Envoy with
+                ``HostRewrite``).  A future major release will flip the
+                default to ``False``.
 
     Example::
 
-        resolver = SubdomainTenantResolver(store, domain_suffix=".example.com")
+        # Directly exposed, or proxy trust not established — pass False.
+        resolver = SubdomainTenantResolver(
+            store,
+            domain_suffix=".example.com",
+            trust_x_forwarded=False,
+        )
 
         # Request: Host: acme-corp.example.com
         tenant = await resolver.resolve(request)
@@ -71,6 +95,20 @@ class SubdomainTenantResolver(BaseTenantResolver):
         )
         self._trust_x_forwarded = trust_x_forwarded
 
+        # Mirrors the JWTTenantResolver no-audience warning: the insecure-by
+        # -default state stays reachable for backward compatibility, but it
+        # must be visible in logs rather than silent.  Flipping the default
+        # would break every deployment behind a proxy, so the warning is the
+        # non-breaking half of the mitigation.
+        if trust_x_forwarded:
+            logger.warning(
+                "SubdomainTenantResolver: trust_x_forwarded=True.  "
+                "X-Forwarded-Host will be read before Host.  This is safe only "
+                "if every request passes through a trusted reverse proxy that "
+                "sets the header itself — otherwise an attacker can spoof "
+                "tenant identity by sending the header directly."
+            )
+
     def _extract_identifier(self, host: str) -> str:
         """Extract and validate the tenant subdomain from *host*.
 
@@ -82,35 +120,22 @@ class SubdomainTenantResolver(BaseTenantResolver):
 
         Raises:
             TenantResolutionError: When the subdomain cannot be extracted or
-                fails validation.
+                fails validation.  Uses the generic reason to satisfy the
+                anti-enumeration invariant.
         """
         # Strip port suffix (e.g. "host:8000" → "host").
         hostname = host.split(":", maxsplit=1)[0].lower().strip()
 
         if self._domain_suffix and not hostname.endswith(self._domain_suffix):
-            # _domain_suffix is always normalised to start with "." in __init__,
-            # so we can do a single endswith check on the full dotted form.
-            raise TenantResolutionError(
-                reason=(
-                    f"Host {hostname!r} does not end with "
-                    f"configured domain suffix {self._domain_suffix!r}"
-                ),
-                strategy="subdomain",
-            )
+            raise TenantResolutionError(reason=_GENERIC_REASON, strategy="subdomain")
 
         parts = hostname.split(".")
         if len(parts) < 2:
-            raise TenantResolutionError(
-                reason=f"Host {hostname!r} has no subdomain component",
-                strategy="subdomain",
-            )
+            raise TenantResolutionError(reason=_GENERIC_REASON, strategy="subdomain")
 
         identifier = parts[0]
         if not validate_tenant_identifier(identifier):
-            raise TenantResolutionError(
-                reason=f"Subdomain {identifier!r} is not a valid tenant identifier",
-                strategy="subdomain",
-            )
+            raise TenantResolutionError(reason=_GENERIC_REASON, strategy="subdomain")
         return identifier
 
     async def resolve(self, request: Request) -> Tenant:
@@ -123,9 +148,10 @@ class SubdomainTenantResolver(BaseTenantResolver):
             Resolved :class:`~fastapi_tenancy.core.types.Tenant`.
 
         Raises:
-            TenantResolutionError: When the subdomain is absent, does not
-                match the configured suffix, or fails validation.
-            TenantNotFoundError: When the identifier has no matching tenant.
+            TenantResolutionError: On any failure — missing Host header,
+                missing/invalid subdomain, or unknown tenant.  All failure
+                modes share the same generic reason so callers cannot
+                enumerate valid tenant identifiers (anti-enumeration invariant).
         """
         host = ""
         if self._trust_x_forwarded:
@@ -133,14 +159,17 @@ class SubdomainTenantResolver(BaseTenantResolver):
         if not host:
             host = request.headers.get("host", "")
         if not host:
-            raise TenantResolutionError(
-                reason="Neither Host nor X-Forwarded-Host header is present",
-                strategy="subdomain",
-            )
+            raise TenantResolutionError(reason=_GENERIC_REASON, strategy="subdomain")
 
         identifier = self._extract_identifier(host)
         logger.debug("Subdomain resolver: host=%r → identifier=%r", host, identifier)
-        return await self.store.get_by_identifier(identifier)
+        try:
+            return await self.store.get_by_identifier(identifier)
+        except TenantNotFoundError:
+            # Re-raise as TenantResolutionError so the middleware returns the
+            # same status as missing/invalid identifiers — a 404 would confirm
+            # to callers that the subdomain pointed at a real tenant slug.
+            raise TenantResolutionError(reason=_GENERIC_REASON, strategy="subdomain")  # noqa: B904
 
 
 __all__ = ["SubdomainTenantResolver"]
