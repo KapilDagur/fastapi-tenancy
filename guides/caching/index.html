@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/fastapi-tenancy-logo-32.svg">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -537,6 +537,8 @@
       
         
           
+        
+      
         
       
         
@@ -1624,6 +1626,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../testing/" class="md-nav__link">
         
   
@@ -1851,6 +1881,8 @@
       
         
       
+        
+      
     
     
     
@@ -2033,15 +2065,25 @@ module-level initialisation) that runs before any concurrent tasks start.</p>
 <h3 id="ttl-strategy"><abbr title="Time-To-Live — the number of seconds before a cache entry is considered stale and must be refreshed.">TTL</abbr> strategy<a class="headerlink" href="#ttl-strategy" title="Anchor link to this section">&para;</a></h3>
 <p>Entries expire after <code>ttl</code> seconds regardless of access pattern. Short TTLs (30–120 s) limit the staleness window after a <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> update. Long TTLs reduce database load but mean updates take longer to propagate.</p>
 <h3 id="configuration-via-tenancyconfig">Configuration via <code>TenancyConfig</code><a class="headerlink" href="#configuration-via-tenancyconfig" title="Anchor link to this section">&para;</a></h3>
-<p>The in-process cache <abbr title="Time-To-Live — the number of seconds before a cache entry is considered stale and must be refreshed.">TTL</abbr> and max size are first-class config fields:</p>
+<p>The in-process cache is enabled and sized through first-class config fields:</p>
 <div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">config</span> <span class="o">=</span> <span class="n">TenancyConfig</span><span class="p">(</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="n">database_url</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="n">l1_cache_max_size</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>     <span class="c1"># TENANCY_L1_CACHE_MAX_SIZE env var</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">l1_cache_ttl_seconds</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span>   <span class="c1"># TENANCY_L1_CACHE_TTL_SECONDS env var</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">)</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="n">l1_cache_enabled</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>      <span class="c1"># TENANCY_L1_CACHE_ENABLED env var</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">l1_cache_max_size</span><span class="o">=</span><span class="mi">2000</span><span class="p">,</span>     <span class="c1"># TENANCY_L1_CACHE_MAX_SIZE env var</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>    <span class="n">l1_cache_ttl_seconds</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span>   <span class="c1"># TENANCY_L1_CACHE_TTL_SECONDS env var</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>TenancyManager</code> reads these fields during <code>initialize()</code> to configure the
 <code>TenantCache</code> instance automatically.</p>
+<div class="admonition tip">
+<p class="admonition-title">L1 does not require Redis</p>
+<p><code>l1_cache_enabled</code> turns the in-process cache on by itself — <code>TenantCache</code>
+is a pure in-process <abbr title="Least-Recently-Used — eviction policy that removes the item accessed furthest in the past when the cache is full.">LRU</abbr> and never contacts Redis, so no <code>redis_url</code> is
+needed. This is the right setting for a single-process deployment that
+wants microsecond <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> lookups without running Redis.</p>
+<p><code>cache_enabled=True</code> (the Redis write-through cache below) still implies
+L1, so you do not need both.</p>
+</div>
 <h2 id="redis-write-through-cache">Redis write-through cache<a class="headerlink" href="#redis-write-through-cache" title="Anchor link to this section">&para;</a></h2>
 <p>For applications with multiple workers or Kubernetes pods, the in-process cache is not shared across processes. Use <code>RedisTenantStore</code> as a shared cache layer:</p>
 <div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">config</span> <span class="o">=</span> <span class="n">TenancyConfig</span><span class="p">(</span>
@@ -2091,7 +2133,7 @@ task is started in <code>initialize()</code> and cancelled in <code>close()</cod
 </tr>
 <tr>
 <td>Single-process, high traffic</td>
-<td><code>l1_cache_max_size=500</code>, <code>l1_cache_ttl_seconds=300</code></td>
+<td><code>l1_cache_enabled=True</code>, <code>l1_cache_max_size=500</code>, <code>l1_cache_ttl_seconds=300</code> — no Redis needed</td>
 </tr>
 <tr>
 <td>Multi-process, medium traffic</td>
@@ -2367,7 +2409,7 @@ task is started in <code>initialize()</code> and cancelled in <code>close()</cod
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.prune", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "toc.integrate", "search.suggest", "search.highlight", "search.share", "content.tabs.link", "content.code.copy", "content.code.annotate", "content.code.select", "content.tooltips", "content.action.edit", "content.action.view", "header.autohide"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "stable", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/extra.js"></script>
       

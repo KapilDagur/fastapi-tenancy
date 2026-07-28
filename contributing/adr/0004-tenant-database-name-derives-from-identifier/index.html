@@ -6,17 +6,15 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Fast in-process store for unit tests and local development.">
+        <meta name="description" content="Production-ready multi-tenancy for FastAPI — schema, database, RLS, and hybrid isolation with full async support.">
       
       
       
-        <link rel="canonical" href="https://fastapi-tenancy.readthedocs.io/guides/storage/memory/">
+        <link rel="canonical" href="https://fastapi-tenancy.readthedocs.io/contributing/adr/0004-tenant-database-name-derives-from-identifier/">
       
       
-        <link rel="prev" href="../redis/">
+        <link rel="prev" href="../0003-testcontainers-replaces-docker-compose/">
       
-      
-        <link rel="next" href="../custom/">
       
       
         
@@ -27,7 +25,7 @@
     
     
       
-        <title>In-Memory Tenant Store - fastapi-tenancy</title>
+        <title>0004 Tenant database name derives from identifier - fastapi-tenancy</title>
       
     
     
@@ -92,7 +90,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#in-memory-tenant-store" class="md-skip">
+        <a href="#adr-0004-per-tenant-database-names-derive-from-the-tenant-identifier" class="md-skip">
           Skip to content
         </a>
       
@@ -143,7 +141,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              In-Memory Tenant Store
+              0004 Tenant database name derives from identifier
             
           </span>
         </div>
@@ -294,13 +292,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../../guides/" class="md-tabs__link">
           
   
   
@@ -362,11 +358,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../../contributing/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
           
   
   
@@ -528,8 +526,6 @@
       
   
   
-    
-  
   
   
     
@@ -569,26 +565,24 @@
     
     
       
-        
-        
-      
       
         
       
     
     
       
+        
+        
+      
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../../" class="md-nav__link ">
-              
+  
+  
+  
+    <a href="../../../guides/" class="md-nav__link">
+      
   
   
   <span class="md-ellipsis">
@@ -602,1037 +596,12 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Guides
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
       
-        
-          
-        
+        <span class="md-nav__icon md-icon"></span>
       
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-      
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../../isolation/" class="md-nav__link ">
-              
+    </a>
   
-  
-  <span class="md-ellipsis">
-    
-  
-    Isolation Strategies
-  
-
-    
-  </span>
-  
-  
-
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_3_2" id="__nav_3_2_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_2">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Isolation Strategies
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../isolation/schema/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Schema Isolation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../isolation/database/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Database Isolation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../isolation/rls/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Row-Level Security
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../isolation/hybrid/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Hybrid Isolation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-      
-        
-          
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-      
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../../resolution/" class="md-nav__link ">
-              
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Resolution Strategies
-  
-
-    
-  </span>
-  
-  
-
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_3_3" id="__nav_3_3_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Resolution Strategies
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolution/header/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Header
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolution/subdomain/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Subdomain
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolution/path/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Path
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolution/jwt/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    JWT
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolution/custom/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Custom
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    
-    
-      
-        
-          
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-      
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" checked>
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
-              
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Tenant Storage
-  
-
-    
-  </span>
-  
-  
-
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_3_4" id="__nav_3_4_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3_4">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Tenant Storage
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../sqlalchemy/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SQLAlchemy Store
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../redis/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Redis Store
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    In-Memory Store
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    In-Memory Store
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Usage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#pytest-fixture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pytest fixture
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#seeding-tenants" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Seeding tenants
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#performance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../custom/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Custom Store
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../middleware/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Middleware
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../dependencies/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dependency Injection
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../context/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Context Management
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../migrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migrations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../caching/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Caching
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../rate-limiting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Rate Limiting
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../audit-logging/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Audit Logging
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../security-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Security Model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../testing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Testing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../deployment/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Deployment
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
 
-              
-            
-          </ul>
-        </nav>
       
     </li>
   
@@ -1794,6 +763,8 @@
       
   
   
+    
+  
   
   
     
@@ -1815,24 +786,26 @@
     
     
       
+        
+        
+      
       
         
       
     
     
       
-        
-        
-      
     
-    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
-  
-  
-  
-    <a href="../../../contributing/" class="md-nav__link">
-      
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
   
   
   <span class="md-ellipsis">
@@ -1846,12 +819,483 @@
   
   
 
-      
-        <span class="md-nav__icon md-icon"></span>
-      
-    </a>
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
   
 
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Style
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture Decisions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../0001-commit-uv-lock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0001 Commit uv.lock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../0002-devcontainer-canonical-environment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0002 Devcontainer as canonical environment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../0003-testcontainers-replaces-docker-compose/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0003 Testcontainers replaces docker-compose
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0004 Tenant database name derives from identifier
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0004 Tenant database name derives from identifier
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#options-considered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options considered
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Options considered">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-standardise-on-tenantid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A - Standardise on tenant.id
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-standardise-on-tenantidentifier-chosen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B - Standardise on tenant.identifier (chosen)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-c-store-the-resolved-name-on-the-tenant-row" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option C - Store the resolved name on the Tenant row
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#follow-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Follow-ups
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
       
     </li>
   
@@ -1903,7 +1347,7 @@
         <a href="../../" class="md-path__link">
           
   <span class="md-ellipsis">
-    Guides
+    Contributing
   </span>
 
         </a>
@@ -1918,10 +1362,10 @@
     
     
       <li class="md-path__item">
-        <a href="../" class="md-path__link">
+        <a href="../0001-commit-uv-lock/" class="md-path__link">
           
   <span class="md-ellipsis">
-    Tenant Storage
+    Architecture Decisions
   </span>
 
         </a>
@@ -1940,7 +1384,7 @@
 
 
   
-    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/edit/main/docs/guides/storage/memory.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/edit/main/docs/contributing/adr/0004-tenant-database-name-derives-from-identifier.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
     </a>
@@ -1949,64 +1393,151 @@
     
       
     
-    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/raw/main/docs/guides/storage/memory.md" title="View source of this page" class="md-content__button md-icon">
+    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/raw/main/docs/contributing/adr/0004-tenant-database-name-derives-from-identifier.md" title="View source of this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
     </a>
   
 
 
-<h1 id="in-memory-tenant-store">In-Memory Tenant Store<a class="headerlink" href="#in-memory-tenant-store" title="Anchor link to this section">&para;</a></h1>
-<p><code>InMemoryTenantStore</code> keeps all <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> data in Python dictionaries. It requires no database and is ideal for unit tests, local prototyping, and CI environments where spinning up a real database is unnecessary.</p>
-<div class="admonition warning">
-<p class="admonition-title">Not for production</p>
-<p>All data is <strong>lost when the process exits</strong>. Use <code>SQLAlchemyTenantStore</code> for production.</p>
-</div>
-<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Anchor link to this section">&para;</a></h2>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi_tenancy.storage.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">InMemoryTenantStore</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi_tenancy.core.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tenant</span>
+<h1 id="adr-0004-per-tenant-database-names-derive-from-the-tenant-identifier">ADR 0004 - Per-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> database names derive from the <abbr title="A human-readable slug (e.g. `&quot;acme-corp&quot;`) used in URLs and headers.">tenant identifier</abbr><a class="headerlink" href="#adr-0004-per-tenant-database-names-derive-from-the-tenant-identifier" title="Anchor link to this section">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-07-28</li>
+<li><strong>Deciders:</strong> fastapi-tenancy maintainers</li>
+<li><strong>Related:</strong> review finding F1; breaking change to <code>TenancyConfig.get_database_url_for_tenant()</code></li>
+</ul>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Anchor link to this section">&para;</a></h2>
+<p>Under <code>IsolationStrategy.DATABASE</code> every <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> gets its own database. Three
+subsystems need that database's name, and each derived it independently:</p>
+<table>
+<thead>
+<tr>
+<th>Subsystem</th>
+<th>Location</th>
+<th>Derived from</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DatabaseIsolationProvider._database_name</code> - <strong>creates</strong> the database</td>
+<td><code>isolation/database.py</code></td>
+<td><code>tenant.identifier</code></td>
+</tr>
+<tr>
+<td><code>TenancyConfig.get_database_url_for_tenant</code> - builds connection URLs</td>
+<td><code>core/config.py</code></td>
+<td><code>tenant.id</code></td>
+</tr>
+<tr>
+<td><code>TenantMigrationManager._build_alembic_args</code> - <strong>migrates</strong> the database</td>
+<td><code>migrations/manager.py</code></td>
+<td>the config helper, so <code>tenant.id</code></td>
+</tr>
+</tbody>
+</table>
+<p>The two derivations produced different names for the same <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>:</p>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># provider, from identifier &quot;acme-corp&quot;</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="sa">f</span><span class="s2">&quot;tenant_</span><span class="si">{</span><span class="n">sanitize_identifier</span><span class="p">(</span><span class="n">tenant</span><span class="o">.</span><span class="n">identifier</span><span class="p">)</span><span class="si">}</span><span class="s2">_db&quot;</span>   <span class="c1"># tenant_acme_corp_db</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">store</span> <span class="o">=</span> <span class="n">InMemoryTenantStore</span><span class="p">()</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># No initialize() needed — it&#39;s always ready</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">tenant</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">Tenant</span><span class="p">(</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;t-001&quot;</span><span class="p">,</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">identifier</span><span class="o">=</span><span class="s2">&quot;acme-corp&quot;</span><span class="p">,</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Acme Corporation&quot;</span><span class="p">,</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">))</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># config, from id &quot;tenant-Ab3xyz9mqp2s&quot;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">db_name</span> <span class="o">=</span> <span class="n">tenant_id</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="sa">f</span><span class="s2">&quot;tenant_</span><span class="si">{</span><span class="n">db_name</span><span class="si">}</span><span class="s2">_db&quot;</span>                                  <span class="c1"># tenant_tenant_ab3xyz9mqp2s_db</span>
 </span></code></pre></div>
-<h2 id="pytest-fixture">Pytest fixture<a class="headerlink" href="#pytest-fixture" title="Anchor link to this section">&para;</a></h2>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi_tenancy.storage.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">InMemoryTenantStore</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi_tenancy.core.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tenant</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">store</span><span class="p">():</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">s</span> <span class="o">=</span> <span class="n">InMemoryTenantStore</span><span class="p">()</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="k">return</span> <span class="n">s</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">tenant</span><span class="p">(</span><span class="n">store</span><span class="p">):</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="k">return</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">Tenant</span><span class="p">(</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>        <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;t-test&quot;</span><span class="p">,</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>        <span class="n">identifier</span><span class="o">=</span><span class="s2">&quot;test-corp&quot;</span><span class="p">,</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Test Corp&quot;</span><span class="p">,</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="p">))</span>
+<p><code>register_tenant</code> never populates <code>tenant.database_url</code>, so the fallback path is
+the normal path, not an edge case. The provider provisioned
+<code>tenant_acme_corp_db</code> and <code>upgrade_all</code> then pointed Alembic at
+<code>tenant_tenant_ab3xyz9mqp2s_db</code>. Alembic migrated a non-existent or
+auto-created empty database and reported success. <strong>The <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>'s real database
+was never migrated, silently</strong> - the failure surfaces later as missing tables at
+runtime, far from its cause.</p>
+<p><code>BaseIsolationProvider.get_database_url()</code> used the same id-based derivation and
+had no callers in <code>src/</code>, making it a trap for the first person to reach for it.</p>
+<h2 id="options-considered">Options considered<a class="headerlink" href="#options-considered" title="Anchor link to this section">&para;</a></h2>
+<h3 id="option-a-standardise-on-tenantid">Option A - Standardise on <code>tenant.id</code><a class="headerlink" href="#option-a-standardise-on-tenantid" title="Anchor link to this section">&para;</a></h3>
+<p>Change the provider to derive from <code>id</code> as well. Rejected on a correctness
+property, not on taste.</p>
+<p><code>generate_tenant_id()</code> returns <code>f"{prefix}-{token_urlsafe(12)}"</code>.
+<code>token_urlsafe</code> output is <strong>case-sensitive</strong> and draws from an alphabet
+containing both <code>-</code> and <code>_</code>. The derivation lowercases and maps <code>-</code> to <code>_</code>, so
+it is <strong>not injective</strong>: <code>"tenant-aB"</code> and <code>"tenant-Ab"</code> collapse to one name,
+as do <code>"a-b"</code> and <code>"a_b"</code>. Two distinct tenants sharing one database is
+cross-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> data sharing - low probability, maximal blast radius.</p>
+<h3 id="option-b-standardise-on-tenantidentifier-chosen">Option B - Standardise on <code>tenant.identifier</code> (chosen)<a class="headerlink" href="#option-b-standardise-on-tenantidentifier-chosen" title="Anchor link to this section">&para;</a></h3>
+<p>The identifier is validated by <code>validate_tenant_identifier</code> against
+<code>^[a-z][a-z0-9\-]{1,61}[a-z0-9]$</code> before it is ever stored. It is already
+lowercase and contains no <code>_</code>, so mapping <code>-</code> to <code>_</code> <strong>is</strong> injective over the
+validated domain: distinct identifiers cannot collide. Identifiers are also
+unique in the store, and the resulting name is legible to an operator running
+<code>\l</code> - <code>tenant_acme_corp_db</code> rather than <code>tenant_tenant_ab3xyz9mqp2s_db</code>.</p>
+<h3 id="option-c-store-the-resolved-name-on-the-tenant-row">Option C - Store the resolved name on the <code>Tenant</code> row<a class="headerlink" href="#option-c-store-the-resolved-name-on-the-tenant-row" title="Anchor link to this section">&para;</a></h3>
+<p>Add a <code>database_name</code> column written at provisioning time. This is the most
+robust option - it survives even a future change to the naming rule, because
+existing tenants keep the name they were created with.</p>
+<p>Not chosen <em>now</em>: it requires a schema migration and a backfill for existing
+deployments, and <code>Tenant.database_url</code> already provides a per-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> override
+for anyone who needs to pin an exact target. Recorded as a follow-up.</p>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Anchor link to this section">&para;</a></h2>
+<p><code>TenancyConfig.get_database_name(tenant_identifier)</code> is the <strong>single source of
+truth</strong> for per-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> database naming. It validates the identifier and raises
+<code>ValueError</code> on anything that fails validation - it never sanitises silently.</p>
+<p>The provider, <code>get_database_url_for_tenant()</code>,
+<code>BaseIsolationProvider.get_database_url()</code>, and <code>TenantMigrationManager</code> all
+resolve names through it. None of them re-implements the rule.</p>
+<p>This forces a <strong>breaking signature change</strong>:</p>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># before</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">config</span><span class="o">.</span><span class="n">get_database_url_for_tenant</span><span class="p">(</span><span class="n">tenant</span><span class="o">.</span><span class="n">id</span><span class="p">)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># after</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">config</span><span class="o">.</span><span class="n">get_database_url_for_tenant</span><span class="p">(</span><span class="n">tenant</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">tenant</span><span class="o">.</span><span class="n">identifier</span><span class="p">)</span>
 </span></code></pre></div>
-<h2 id="seeding-tenants">Seeding tenants<a class="headerlink" href="#seeding-tenants" title="Anchor link to this section">&para;</a></h2>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">store</span> <span class="o">=</span> <span class="n">InMemoryTenantStore</span><span class="p">()</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">Tenant</span><span class="p">(</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>        <span class="nb">id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;t-</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">03d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>        <span class="n">identifier</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;tenant-</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">03d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>        <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Tenant </span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">03d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="p">))</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">tenants</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">tenants</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
-</span></code></pre></div>
-<h2 id="performance">Performance<a class="headerlink" href="#performance" title="Anchor link to this section">&para;</a></h2>
-<p>All reads are O(1) — two dictionaries (<code>id → Tenant</code> and <code>identifier → tenant_id</code>) are kept in sync for constant-time lookups. This means even test suites with thousands of tenants run without meaningful overhead.</p>
+<p>Both arguments are genuinely required: the two template placeholders are fed
+from different fields - <code>{tenant_id}</code> from the opaque ID, <code>{database_name}</code> from
+the identifier. Making <code>tenant_identifier</code> optional would have preserved source
+compatibility while silently keeping the broken derivation alive for any caller
+that omitted it, which defeats the purpose.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Anchor link to this section">&para;</a></h2>
+<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li>The provisioning path and the migration path cannot disagree. They are the
+  same function call.</li>
+<li>Distinct tenants cannot collide onto one database. This is now a structural
+  property of the validated identifier grammar, not a probabilistic argument.</li>
+<li>Database names are legible in operator tooling.</li>
+<li><code>BaseIsolationProvider.get_database_url()</code> is no longer a trap.</li>
+</ul>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li><strong>Breaking for external callers</strong> of <code>get_database_url_for_tenant()</code> and of
+  <code>BaseIsolationProvider.get_database_url()</code>. Both are public. The change is
+  loud - a <code>TypeError</code> at the call site, not a silent behaviour shift.</li>
+<li><strong>Existing DATABASE-isolation deployments provisioned before this change may
+  hold databases under the old id-derived name.</strong> Those tenants were, by
+  definition, never successfully migrated by <code>upgrade_all</code>, so the affected
+  databases are empty or partially provisioned. Operators should confirm which
+  names exist before upgrading and set <code>Tenant.database_url</code> explicitly for any
+  <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> whose real data lives under an old name.</li>
+<li>Renaming a <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>'s identifier now implies renaming its database. The library
+  does not do this automatically; a rename on a DATABASE-isolated <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> will
+  point at a database that does not exist unless <code>database_url</code> is set.</li>
+</ul>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li>Per-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> <code>Tenant.database_url</code> still overrides derivation entirely and is
+  unaffected.</li>
+<li>SCHEMA isolation is untouched - <code>get_schema_name()</code> already derived from the
+  identifier and was already the single source for schema names.</li>
+</ul>
+<h2 id="follow-ups">Follow-ups<a class="headerlink" href="#follow-ups" title="Anchor link to this section">&para;</a></h2>
+<ul>
+<li>Consider Option C (persist <code>database_name</code> on the <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> row) if the naming
+  rule ever needs to change again, or to make identifier renames safe.</li>
+<li>Add an <code>e2e</code> test that provisions a real per-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> PostgreSQL database and
+  then migrates it end-to-end. The current regression test
+  (<code>TestDatabaseNameAgreement</code>) pins that all four derivations agree, which is
+  the defect that occurred; an e2e test would additionally catch template and
+  URL-shape errors.</li>
+</ul>
 <!-- Glossary abbreviations — auto-appended to every page via pymdownx.snippets -->
 <!-- The full glossary page is rendered at reference/glossary-page.md          -->
 
@@ -2015,9 +1546,6 @@
 
 
 
-
-  
-  
 
 
 
@@ -2101,7 +1629,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../redis/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Redis Store">
+          <a href="../0003-testcontainers-replaces-docker-compose/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 0003 Testcontainers replaces docker-compose">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2111,27 +1639,11 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Redis Store
+                0003 Testcontainers replaces docker-compose
               </div>
             </div>
           </a>
         
-        
-          
-          <a href="../custom/" class="md-footer__link md-footer__link--next" aria-label="Next: Custom Store">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                Custom Store
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
-            </div>
-          </a>
         
       </nav>
     

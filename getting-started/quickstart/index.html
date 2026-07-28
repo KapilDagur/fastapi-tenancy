@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/fastapi-tenancy-logo-32.svg">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -791,6 +791,8 @@
       
         
       
+        
+      
     
     
     
@@ -1000,6 +1002,8 @@
       
         
           
+        
+      
         
       
         
@@ -1288,8 +1292,8 @@ application from scratch.</p>
 </tr>
 <tr>
 <td>Unknown <abbr title="A human-readable slug (e.g. `&quot;acme-corp&quot;`) used in URLs and headers.">tenant identifier</abbr></td>
-<td><code>404</code></td>
-<td><code>{"detail": "Tenant not found"}</code></td>
+<td><code>400</code></td>
+<td><code>{"detail": "Tenant not found"}</code> — same as a malformed one, so tenants cannot be enumerated</td>
 </tr>
 <tr>
 <td>Suspended or deleted <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr></td>
@@ -1597,7 +1601,7 @@ variable. See <a href="../configuration/">Configuration</a> for the full list.</
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.prune", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "toc.integrate", "search.suggest", "search.highlight", "search.share", "content.tabs.link", "content.code.copy", "content.code.annotate", "content.code.select", "content.tooltips", "content.action.edit", "content.action.view", "header.autohide"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "stable", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/extra.js"></script>
       

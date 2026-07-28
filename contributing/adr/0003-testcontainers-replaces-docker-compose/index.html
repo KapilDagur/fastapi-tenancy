@@ -6,17 +6,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Fast in-process store for unit tests and local development.">
+        <meta name="description" content="Production-ready multi-tenancy for FastAPI — schema, database, RLS, and hybrid isolation with full async support.">
       
       
       
-        <link rel="canonical" href="https://fastapi-tenancy.readthedocs.io/guides/storage/memory/">
+        <link rel="canonical" href="https://fastapi-tenancy.readthedocs.io/contributing/adr/0003-testcontainers-replaces-docker-compose/">
       
       
-        <link rel="prev" href="../redis/">
+        <link rel="prev" href="../0002-devcontainer-canonical-environment/">
       
       
-        <link rel="next" href="../custom/">
+        <link rel="next" href="../0004-tenant-database-name-derives-from-identifier/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>In-Memory Tenant Store - fastapi-tenancy</title>
+        <title>0003 Testcontainers replaces docker-compose - fastapi-tenancy</title>
       
     
     
@@ -92,7 +92,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#in-memory-tenant-store" class="md-skip">
+        <a href="#adr-0003-testcontainers-replaces-docker-compose-for-test-services" class="md-skip">
           Skip to content
         </a>
       
@@ -143,7 +143,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              In-Memory Tenant Store
+              0003 Testcontainers replaces docker-compose
             
           </span>
         </div>
@@ -294,13 +294,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../../guides/" class="md-tabs__link">
           
   
   
@@ -362,11 +360,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../../contributing/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../" class="md-tabs__link">
           
   
   
@@ -528,8 +528,6 @@
       
   
   
-    
-  
   
   
     
@@ -569,26 +567,24 @@
     
     
       
-        
-        
-      
       
         
       
     
     
       
+        
+        
+      
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../../" class="md-nav__link ">
-              
+  
+  
+  
+    <a href="../../../guides/" class="md-nav__link">
+      
   
   
   <span class="md-ellipsis">
@@ -602,1037 +598,12 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Guides
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
       
-        
-          
-        
+        <span class="md-nav__icon md-icon"></span>
       
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-      
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_2" >
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../../isolation/" class="md-nav__link ">
-              
+    </a>
   
-  
-  <span class="md-ellipsis">
-    
-  
-    Isolation Strategies
-  
-
-    
-  </span>
-  
-  
-
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_3_2" id="__nav_3_2_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_2">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Isolation Strategies
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../isolation/schema/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Schema Isolation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../isolation/database/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Database Isolation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../isolation/rls/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Row-Level Security
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../isolation/hybrid/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Hybrid Isolation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-      
-        
-          
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-      
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3" >
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../../resolution/" class="md-nav__link ">
-              
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Resolution Strategies
-  
-
-    
-  </span>
-  
-  
-
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_3_3" id="__nav_3_3_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_3">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Resolution Strategies
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolution/header/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Header
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolution/subdomain/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Subdomain
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolution/path/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Path
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolution/jwt/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    JWT
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../resolution/custom/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Custom
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    
-    
-      
-        
-          
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-      
-        
-          
-          
-        
-      
-    
-    
-      
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" checked>
-        
-          
-          <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
-              
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Tenant Storage
-  
-
-    
-  </span>
-  
-  
-
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_3_4" id="__nav_3_4_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_3_4">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Tenant Storage
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../sqlalchemy/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SQLAlchemy Store
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../redis/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Redis Store
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    In-Memory Store
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    In-Memory Store
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#usage" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Usage
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#pytest-fixture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pytest fixture
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#seeding-tenants" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Seeding tenants
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#performance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../custom/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Custom Store
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../middleware/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Middleware
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../dependencies/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dependency Injection
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../context/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Context Management
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../migrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migrations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../caching/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Caching
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../rate-limiting/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Rate Limiting
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../audit-logging/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Audit Logging
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../security-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Security Model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../testing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Testing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../deployment/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Deployment
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
 
-              
-            
-          </ul>
-        </nav>
       
     </li>
   
@@ -1794,6 +765,8 @@
       
   
   
+    
+  
   
   
     
@@ -1815,24 +788,26 @@
     
     
       
+        
+        
+      
       
         
       
     
     
       
-        
-        
-      
     
-    <li class="md-nav__item md-nav__item--pruned md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
-  
-  
-  
-    <a href="../../../contributing/" class="md-nav__link">
-      
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../" class="md-nav__link ">
+              
   
   
   <span class="md-ellipsis">
@@ -1846,12 +821,494 @@
   
   
 
-      
-        <span class="md-nav__icon md-icon"></span>
-      
-    </a>
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_6" id="__nav_6_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
   
 
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Development Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../testing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running Tests
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../style/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Code Style
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture Decisions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../0001-commit-uv-lock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0001 Commit uv.lock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../0002-devcontainer-canonical-environment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0002 Devcontainer as canonical environment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0003 Testcontainers replaces docker-compose
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0003 Testcontainers replaces docker-compose
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#options-considered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Options considered
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Options considered">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-a-keep-docker-compose-pin-digests-everywhere-status-quo-hardened" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option A - Keep docker-compose, pin digests everywhere (status quo, hardened)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-b-testcontainers-for-all-four-backends-chosen" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option B - Testcontainers for all four backends (chosen)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-c-testcontainers-in-ci-only-compose-locally" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option C - Testcontainers in CI only, compose locally
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#notes-discovered-during-implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notes discovered during implementation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#follow-ups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Follow-ups
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../0004-tenant-database-name-derives-from-identifier/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0004 Tenant database name derives from identifier
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
       
     </li>
   
@@ -1903,7 +1360,7 @@
         <a href="../../" class="md-path__link">
           
   <span class="md-ellipsis">
-    Guides
+    Contributing
   </span>
 
         </a>
@@ -1918,10 +1375,10 @@
     
     
       <li class="md-path__item">
-        <a href="../" class="md-path__link">
+        <a href="../0001-commit-uv-lock/" class="md-path__link">
           
   <span class="md-ellipsis">
-    Tenant Storage
+    Architecture Decisions
   </span>
 
         </a>
@@ -1940,7 +1397,7 @@
 
 
   
-    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/edit/main/docs/guides/storage/memory.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/edit/main/docs/contributing/adr/0003-testcontainers-replaces-docker-compose.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
     </a>
@@ -1949,64 +1406,182 @@
     
       
     
-    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/raw/main/docs/guides/storage/memory.md" title="View source of this page" class="md-content__button md-icon">
+    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/raw/main/docs/contributing/adr/0003-testcontainers-replaces-docker-compose.md" title="View source of this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
     </a>
   
 
 
-<h1 id="in-memory-tenant-store">In-Memory Tenant Store<a class="headerlink" href="#in-memory-tenant-store" title="Anchor link to this section">&para;</a></h1>
-<p><code>InMemoryTenantStore</code> keeps all <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> data in Python dictionaries. It requires no database and is ideal for unit tests, local prototyping, and CI environments where spinning up a real database is unnecessary.</p>
-<div class="admonition warning">
-<p class="admonition-title">Not for production</p>
-<p>All data is <strong>lost when the process exits</strong>. Use <code>SQLAlchemyTenantStore</code> for production.</p>
-</div>
-<h2 id="usage">Usage<a class="headerlink" href="#usage" title="Anchor link to this section">&para;</a></h2>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi_tenancy.storage.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">InMemoryTenantStore</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi_tenancy.core.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tenant</span>
+<h1 id="adr-0003-testcontainers-replaces-docker-compose-for-test-services">ADR 0003 - Testcontainers replaces docker-compose for test services<a class="headerlink" href="#adr-0003-testcontainers-replaces-docker-compose-for-test-services" title="Anchor link to this section">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-07-28</li>
+<li><strong>Deciders:</strong> fastapi-tenancy maintainers</li>
+<li><strong>Supersedes:</strong> <code>docker-compose.test.yml</code>, <code>compose/mssql/</code>, and the <code>make docker-up</code> / <code>docker-down</code> targets</li>
+<li><strong>Related:</strong> <a href="../0002-devcontainer-canonical-environment/">0002</a> (devcontainer)</li>
+</ul>
+<h2 id="context">Context<a class="headerlink" href="#context" title="Anchor link to this section">&para;</a></h2>
+<p>The suite needs four real service backends - PostgreSQL, MySQL, SQL Server, and
+Redis - because the isolation providers depend on genuine server behaviour that
+cannot be faked: PostgreSQL <abbr title="Row-Level Security — a PostgreSQL feature where every query is automatically filtered by tenant via server-side policies.">RLS</abbr> policies and GUCs, <code>SET LOCAL search_path</code>
+semantics across pooled connections, MSSQL <code>schema_translate_map</code>, MySQL's
+schema-equals-database model, and Redis Lua atomicity.</p>
+<p>Those services were provided by <code>docker-compose.test.yml</code> plus TCP probes in the
+test fixtures:</p>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">_pg_up</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="k">return</span> <span class="n">_tcp_ok</span><span class="p">(</span><span class="s2">&quot;localhost&quot;</span><span class="p">,</span> <span class="mi">5432</span><span class="p">)</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">store</span> <span class="o">=</span> <span class="n">InMemoryTenantStore</span><span class="p">()</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># No initialize() needed — it&#39;s always ready</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">tenant</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">Tenant</span><span class="p">(</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;t-001&quot;</span><span class="p">,</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">identifier</span><span class="o">=</span><span class="s2">&quot;acme-corp&quot;</span><span class="p">,</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Acme Corporation&quot;</span><span class="p">,</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">))</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">if</span> <span class="ow">not</span> <span class="n">_pg_up</span><span class="p">():</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">pytest</span><span class="o">.</span><span class="n">skip</span><span class="p">(</span><span class="s2">&quot;PostgreSQL not reachable on localhost:5432&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<h2 id="pytest-fixture">Pytest fixture<a class="headerlink" href="#pytest-fixture" title="Anchor link to this section">&para;</a></h2>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pytest</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi_tenancy.storage.memory</span><span class="w"> </span><span class="kn">import</span> <span class="n">InMemoryTenantStore</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi_tenancy.core.types</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tenant</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">def</span><span class="w"> </span><span class="nf">store</span><span class="p">():</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">s</span> <span class="o">=</span> <span class="n">InMemoryTenantStore</span><span class="p">()</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="k">return</span> <span class="n">s</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="nd">@pytest</span><span class="o">.</span><span class="n">fixture</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">tenant</span><span class="p">(</span><span class="n">store</span><span class="p">):</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="k">return</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">Tenant</span><span class="p">(</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>        <span class="nb">id</span><span class="o">=</span><span class="s2">&quot;t-test&quot;</span><span class="p">,</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>        <span class="n">identifier</span><span class="o">=</span><span class="s2">&quot;test-corp&quot;</span><span class="p">,</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Test Corp&quot;</span><span class="p">,</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="p">))</span>
-</span></code></pre></div>
-<h2 id="seeding-tenants">Seeding tenants<a class="headerlink" href="#seeding-tenants" title="Anchor link to this section">&para;</a></h2>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">store</span> <span class="o">=</span> <span class="n">InMemoryTenantStore</span><span class="p">()</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">10</span><span class="p">):</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">Tenant</span><span class="p">(</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>        <span class="nb">id</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;t-</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">03d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>        <span class="n">identifier</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;tenant-</span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">03d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>        <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;Tenant </span><span class="si">{</span><span class="n">i</span><span class="si">:</span><span class="s2">03d</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="p">))</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">tenants</span> <span class="o">=</span> <span class="k">await</span> <span class="n">store</span><span class="o">.</span><span class="n">list</span><span class="p">()</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">tenants</span><span class="p">)</span> <span class="o">==</span> <span class="mi">10</span>
-</span></code></pre></div>
-<h2 id="performance">Performance<a class="headerlink" href="#performance" title="Anchor link to this section">&para;</a></h2>
-<p>All reads are O(1) — two dictionaries (<code>id → Tenant</code> and <code>identifier → tenant_id</code>) are kept in sync for constant-time lookups. This means even test suites with thousands of tenants run without meaningful overhead.</p>
+<p>This worked, but had four structural problems:</p>
+<ol>
+<li>
+<p><strong>Two sources of truth, three in CI.</strong> Service definitions lived in
+   <code>docker-compose.test.yml</code> for local runs <em>and</em> in GitHub Actions <code>services:</code>
+   blocks for CI, with connection URLs duplicated a third time as <code>env:</code> entries
+   and as defaults hardcoded in five test modules. The compose file pinned image
+   digests; the CI <code>services:</code> blocks used floating tags. Local and CI were
+   testing against different image versions with no mechanism to notice.</p>
+</li>
+<li>
+<p><strong>A TCP probe is not a readiness check.</strong> <code>_tcp_ok</code> returns true as soon as
+   the port accepts a connection. SQL Server accepts TCP long before it accepts
+   logins, which is exactly why the compose file needed a 60-second
+   <code>start_period</code> and a bespoke <code>sqlcmd</code> health probe, and why <code>compose/mssql/</code>
+   existed at all.</p>
+</li>
+<li>
+<p><strong>Fixed host ports.</strong> 5432, 3306, 1433, and 6379 were claimed on the host.
+   A contributor with a local PostgreSQL either got a port conflict or, worse,
+   silently ran the destructive schema and database tests against their own
+   development server.</p>
+</li>
+<li>
+<p><strong>Shared mutable state across runs.</strong> Named volumes (<code>ft_pg_data</code>,
+   <code>ft_mysql_data</code>, <code>ft_mssql_data</code>) persisted between runs, so a test that
+   leaked a schema or database could influence a later run. <code>make docker-down</code>
+   removed them, but nothing enforced running it.</p>
+</li>
+</ol>
+<h2 id="options-considered">Options considered<a class="headerlink" href="#options-considered" title="Anchor link to this section">&para;</a></h2>
+<h3 id="option-a-keep-docker-compose-pin-digests-everywhere-status-quo-hardened">Option A - Keep docker-compose, pin digests everywhere (status quo, hardened)<a class="headerlink" href="#option-a-keep-docker-compose-pin-digests-everywhere-status-quo-hardened" title="Anchor link to this section">&para;</a></h3>
+<p>Pin the CI <code>services:</code> images to the same digests as the compose file and keep
+both.</p>
+<ul>
+<li>Smallest change; keeps <code>make docker-up</code> muscle memory.</li>
+<li>Does not fix duplication, it institutionalises it: three places to update for
+  every image bump, kept in step by discipline alone.</li>
+<li>Does not fix fixed ports, readiness, or state leakage.</li>
+</ul>
+<h3 id="option-b-testcontainers-for-all-four-backends-chosen">Option B - Testcontainers for all four backends (chosen)<a class="headerlink" href="#option-b-testcontainers-for-all-four-backends-chosen" title="Anchor link to this section">&para;</a></h3>
+<p>Delete the compose file and the CI <code>services:</code> blocks. Start each backend from
+the test session on first use, via a single <code>tests/_services.py</code> module.</p>
+<ul>
+<li>One definition of every service, in Python, used identically by local runs,
+  the devcontainer, and CI.</li>
+<li>Random host ports, so no conflict with a developer's own services and no risk
+  of running destructive tests against them.</li>
+<li>Fresh containers per session: no persistent volumes, no cross-run leakage.</li>
+<li>Real readiness checks instead of TCP probes.</li>
+<li>Costs: Docker becomes required for integration and E2E runs, container startup
+  is paid per session, and <code>testcontainers</code> becomes a dev dependency.</li>
+</ul>
+<h3 id="option-c-testcontainers-in-ci-only-compose-locally">Option C - Testcontainers in CI only, compose locally<a class="headerlink" href="#option-c-testcontainers-in-ci-only-compose-locally" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li>Rejected. It keeps both systems and reintroduces the local/CI divergence that
+  motivates this decision.</li>
+</ul>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Anchor link to this section">&para;</a></h2>
+<p>Use Testcontainers for all four backends. Delete <code>docker-compose.test.yml</code>,
+<code>compose/mssql/</code>, the <code>make docker-up</code> / <code>docker-down</code> targets, and the
+<code>services:</code> blocks in CI.</p>
+<p>Design contract for <code>tests/_services.py</code>:</p>
+<ul>
+<li><strong>Lazy and memoised.</strong> A container starts only when a test actually requests
+  its URL, and exactly once per session. A unit-only run starts nothing, so the
+  fast inner loop stays fast.</li>
+<li><strong>Skip, never fail, when Docker is absent.</strong> If the daemon is unavailable or a
+  container refuses to start, the accessor raises <code>pytest.skip</code> and records the
+  reason so subsequent tests skip immediately rather than retrying. This
+  preserves the property the TCP probes gave us: contributors without Docker
+  keep a green unit run.</li>
+<li><strong>Images pinned by digest</strong>, overridable per backend with <code>FT_TEST_&lt;BACKEND&gt;_IMAGE</code>.
+  CI uses that override to drive the PostgreSQL 15/16 matrix, so the matrix is
+  expressed as an environment variable rather than a duplicated service block.</li>
+<li><strong>Stable credentials</strong> - <code>testing</code> / <code>Testing123!</code> / <code>test_db</code> - so generated
+  URLs match what the suite has always used and the diff stays reviewable.</li>
+<li><strong>Explicit readiness for SQL Server.</strong> MSSQL is driven with the generic
+  <code>DockerContainer</code> rather than the library's <code>SqlServerContainer</code>, so we can
+  poll with a real <code>pyodbc</code> connection and create <code>test_db</code> ourselves. The
+  official image has no <code>MSSQL_DATABASE</code> equivalent, which is the entire reason
+  <code>compose/mssql/</code> existed.</li>
+<li><strong>Session teardown</strong> via <code>pytest_unconfigure</code> in the root <code>conftest.py</code>, so
+  containers stop regardless of which test package started them.</li>
+</ul>
+<p>Test fixtures consume four accessors - <code>postgres_url()</code>, <code>mysql_url()</code>,
+<code>mssql_url()</code>, <code>redis_url()</code> - which replace every TCP probe, every
+<code>os.getenv("POSTGRES_URL", ...)</code> default, and every hardcoded <code>localhost:PORT</code>
+literal in the suite.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Anchor link to this section">&para;</a></h2>
+<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li>One definition per service, shared by local, devcontainer, and CI.</li>
+<li>No host port conflicts; no possibility of a destructive test hitting a
+  contributor's own database.</li>
+<li>Fresh state per session by construction.</li>
+<li>CI loses three <code>services:</code> blocks and three sets of duplicated <code>env:</code> URLs.</li>
+<li>The <code>TESTCONTAINERS_*</code> variables already set by <a href="../0002-devcontainer-canonical-environment/">ADR 0002</a>
+  become meaningful instead of inert, and <code>post-create.sh</code> stops advertising
+  behaviour the repository did not have.</li>
+</ul>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li>Docker is now required for integration and E2E runs. Previously a contributor
+  could point the suite at an already-running service. Unit runs are unaffected.</li>
+<li>Container startup cost is paid once per session rather than once per working
+  day with a long-lived compose stack. <code>TESTCONTAINERS_REUSE_ENABLE=true</code> in the
+  devcontainer mitigates this for the inner loop.</li>
+<li><code>testcontainers</code> and its transitive <code>docker</code> SDK join the dev dependency set.</li>
+<li>Ryuk, the Testcontainers reaper, runs as an extra container per session.</li>
+</ul>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Anchor link to this section">&para;</a></h3>
+<ul>
+<li>No change to what is tested or to any assertion. This is an infrastructure
+  swap; the same fixtures yield the same URLs to the same tests.</li>
+<li>No effect on the published package.</li>
+</ul>
+<h2 id="notes-discovered-during-implementation">Notes discovered during implementation<a class="headerlink" href="#notes-discovered-during-implementation" title="Anchor link to this section">&para;</a></h2>
+<p><strong>The Redis service containers were already dead weight.</strong> The Redis suite
+exercises <code>RedisTenantStore</code> against an in-process <code>FakeRedis</code> defined in
+<code>tests/storage/conftest.py</code>; nothing in <code>tests/</code> ever opened a real Redis
+connection. CI nevertheless started a Redis service container in both the
+<code>integration</code> and <code>e2e-postgres</code> jobs and exported a <code>REDIS_URL</code> that no test
+read. Removing those blocks costs no coverage.</p>
+<p><code>redis_url()</code> is still provided by <code>tests/_services.py</code> so the four-backend
+contract is complete and a future real-Redis test has an obvious hook. It had
+<strong>no caller</strong> when this ADR was written, with the note that leaving it unused
+indefinitely was the worst of the three options.</p>
+<p><strong>Update:</strong> it now has one. <code>tests/test_rate_limit_lua.py</code> runs the rate-limit
+Lua script against a real Redis server, which is how a total limiter bypass was
+found — the deny branch returned the pre-state count, and because every other
+rate-limit test mocked <code>redis.eval</code>, the script had never actually executed.
+<code>FakeRedis</code> would not have caught it: the bug lived in the Lua and in its
+interaction with the host-side comparison.</p>
+<p><strong><code>pyodbc</code> has no type stubs.</strong> The SQL Server readiness probe imports it, and
+no maintained <code>types-pyodbc</code> resolves across the project's full
+<code>requires-python</code> range, so <code>pyproject.toml</code> carries a scoped
+<code>ignore_missing_imports</code> override for that one module rather than relaxing the
+global mypy setting.</p>
+<h2 id="follow-ups">Follow-ups<a class="headerlink" href="#follow-ups" title="Anchor link to this section">&para;</a></h2>
+<ol>
+<li>Image digests are pinned in <code>tests/_services.py</code>. They need the same periodic
+   refresh as the devcontainer pins in <a href="../0002-devcontainer-canonical-environment/">ADR 0002</a>;
+   ideally one mechanism covers both.</li>
+<li>MSSQL readiness polls for up to 120 s on a cold image pull. If CI E2E ever
+   covers MSSQL, budget for it or pre-pull the image.</li>
+</ol>
 <!-- Glossary abbreviations — auto-appended to every page via pymdownx.snippets -->
 <!-- The full glossary page is rendered at reference/glossary-page.md          -->
 
@@ -2015,9 +1590,6 @@
 
 
 
-
-  
-  
 
 
 
@@ -2101,7 +1673,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../redis/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Redis Store">
+          <a href="../0002-devcontainer-canonical-environment/" class="md-footer__link md-footer__link--prev" aria-label="Previous: 0002 Devcontainer as canonical environment">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2111,20 +1683,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Redis Store
+                0002 Devcontainer as canonical environment
               </div>
             </div>
           </a>
         
         
           
-          <a href="../custom/" class="md-footer__link md-footer__link--next" aria-label="Next: Custom Store">
+          <a href="../0004-tenant-database-name-derives-from-identifier/" class="md-footer__link md-footer__link--next" aria-label="Next: 0004 Tenant database name derives from identifier">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Custom Store
+                0004 Tenant database name derives from identifier
               </div>
             </div>
             <div class="md-footer__button md-icon">

@@ -6,17 +6,17 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Per-tenant sliding-window rate limiting backed by Redis.">
+        <meta name="description" content="Production-ready multi-tenancy for FastAPI — schema, database, RLS, and hybrid isolation with full async support.">
       
       
       
-        <link rel="canonical" href="https://fastapi-tenancy.readthedocs.io/guides/rate-limiting/">
+        <link rel="canonical" href="https://fastapi-tenancy.readthedocs.io/guides/security-model/">
       
       
-        <link rel="prev" href="../caching/">
+        <link rel="prev" href="../audit-logging/">
       
       
-        <link rel="next" href="../audit-logging/">
+        <link rel="next" href="../testing/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Rate Limiting - fastapi-tenancy</title>
+        <title>Security Model - fastapi-tenancy</title>
       
     
     
@@ -92,7 +92,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#rate-limiting" class="md-skip">
+        <a href="#security-model" class="md-skip">
           Skip to content
         </a>
       
@@ -143,7 +143,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Rate Limiting
+              Security Model
             
           </span>
         </div>
@@ -1404,37 +1404,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Rate Limiting
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../rate-limiting/" class="md-nav__link">
         
   
   
@@ -1450,125 +1423,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#requirements" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Requirements
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Configuration
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sliding-window-algorithm" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sliding-window algorithm
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#http-429-response" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        HTTP 429 response
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#websocket-connections" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        WebSocket connections
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#failure-modes-fail-open-vs-fail-closed" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Failure modes — fail-open vs fail-closed
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#per-tenant-limits" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Per-tenant limits
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#bypassing-rate-limits-for-specific-paths" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Bypassing rate limits for specific paths
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#monitoring" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Monitoring
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1606,10 +1460,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../security-model/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Model
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1625,6 +1506,291 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-library-protects-against" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this library protects against
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="What this library protects against">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cross-tenant-data-access-at-the-database-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-tenant data access at the database boundary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tenant-identifier-injection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tenant identifier injection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tenant-enumeration-via-the-resolution-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tenant enumeration via the resolution layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sensitive-field-leakage-in-the-persistence-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensitive field leakage in the persistence layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sliding-window-rate-limit-bypass" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sliding-window rate-limit bypass
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#forging-tenant-identity-via-spoofed-x-forwarded-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Forging tenant identity via spoofed X-Forwarded-Host
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#algorithm-confusion-attacks-on-jwt-tenant-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm-confusion attacks on JWT tenant tokens
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-this-library-does-not-protect-against" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What this library does NOT protect against
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="What this library does NOT protect against">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#authentication-of-the-caller" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication of the caller
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#authorisation-within-a-tenant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authorisation within a tenant
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sql-injection-in-application-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SQL injection in application queries
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#data-exfiltration-via-legitimate-access" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data exfiltration via legitimate access
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#in-flight-transport-security-tls-or-transport-layer-attacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In-flight transport security (TLS) or transport-layer attacks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#csrf-on-cookie-authenticated-requests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSRF on cookie-authenticated requests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#side-channel-attacks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Side-channel attacks
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compromised-application-secrets" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compromised application secrets
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#denial-of-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Denial of service
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#tenant-data-destruction-by-privileged-operators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tenant data destruction by privileged operators
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#required-application-responsibilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required application responsibilities
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-rotation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key rotation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#threat-actors-considered" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Threat actors considered
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reporting-a-security-issue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reporting a security issue
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1977,7 +2143,7 @@
 
 
   
-    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/edit/main/docs/guides/rate-limiting.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/edit/main/docs/guides/security-model.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83 3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75z"/></svg>
     </a>
@@ -1986,133 +2152,327 @@
     
       
     
-    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/raw/main/docs/guides/rate-limiting.md" title="View source of this page" class="md-content__button md-icon">
+    <a href="https://github.com/fastapi-extensions/fastapi-tenancy/raw/main/docs/guides/security-model.md" title="View source of this page" class="md-content__button md-icon">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0 8a5 5 0 0 1-5-5 5 5 0 0 1 5-5 5 5 0 0 1 5 5 5 5 0 0 1-5 5m0-12.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5"/></svg>
     </a>
   
 
 
-<h1 id="rate-limiting">Rate Limiting<a class="headerlink" href="#rate-limiting" title="Anchor link to this section">&para;</a></h1>
-<p>fastapi-tenancy provides per-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> sliding-window rate limiting backed by Redis sorted sets. When a <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> exceeds its limit, the middleware returns <code>HTTP 429 Too Many Requests</code>. WebSocket connections receive a <code>1008 Policy Violation</code> close frame.</p>
-<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><span class="filename">Bash</span><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;fastapi-tenancy[redis]&quot;</span>
-</span></code></pre></div>
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Anchor link to this section">&para;</a></h2>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">config</span> <span class="o">=</span> <span class="n">TenancyConfig</span><span class="p">(</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">database_url</span><span class="o">=</span><span class="s2">&quot;...&quot;</span><span class="p">,</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">redis_url</span><span class="o">=</span><span class="s2">&quot;redis://localhost:6379/0&quot;</span><span class="p">,</span>   <span class="c1"># required</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">enable_rate_limiting</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">rate_limit_per_minute</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span>             <span class="c1"># default — requests per window</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">rate_limit_window_seconds</span><span class="o">=</span><span class="mi">60</span><span class="p">,</span>          <span class="c1"># default — window duration in seconds</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">rate_limit_fail_closed</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>          <span class="c1"># default — see Failure modes below</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span>
-</span></code></pre></div>
-<p>Both <code>redis_url</code> and <code>enable_rate_limiting=True</code> are required together — the config validator raises <code>ValidationError</code> if <code>enable_rate_limiting=True</code> without a <code>redis_url</code>.</p>
-<h2 id="sliding-window-algorithm">Sliding-window algorithm<a class="headerlink" href="#sliding-window-algorithm" title="Anchor link to this section">&para;</a></h2>
-<p>The rate limiter uses a single Redis sorted set per <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> and a server-side <strong>Lua script</strong> that executes atomically — no TOCTOU race conditions. Each request is represented by a unique member string (<code>"{timestamp}:{uuid4}"</code>) so two concurrent requests arriving within the same microsecond each produce a distinct sorted-set entry rather than overwriting each other.</p>
-<p>Script steps:</p>
-<ol>
-<li><strong>Remove</strong> all members with scores older than <code>now - window_seconds</code> (<code>ZREMRANGEBYSCORE</code>)</li>
-<li><strong>Count</strong> remaining members (<code>ZCARD</code>)</li>
-<li>If count ≥ limit → <strong>deny</strong> immediately without adding (<code>return count</code>)</li>
-<li>Otherwise <strong>add</strong> this request (<code>ZADD</code>) and refresh the key <abbr title="Time-To-Live — the number of seconds before a cache entry is considered stale and must be refreshed.">TTL</abbr> (<code>EXPIRE</code>)</li>
-<li><strong>Return</strong> the new count (≤ limit = allowed)</li>
-</ol>
-<div class="language-text highlight"><span class="filename">Text Only</span><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Redis key: tenancy:ratelimit:&lt;tenant_id&gt;
-</span></code></pre></div>
-<div class="admonition note">
-<p class="admonition-title">Atomicity</p>
-<p>The entire check-and-increment runs inside a single Lua script evaluated by
-Redis. This replaces the earlier two-pipeline approach that had an off-by-one
-race where concurrent requests could all read <code>count = limit - 1</code>, all pass,
-and then all add — silently breaching the limit.</p>
-</div>
-<h2 id="http-429-response">HTTP 429 response<a class="headerlink" href="#http-429-response" title="Anchor link to this section">&para;</a></h2>
-<div class="language-http highlight"><span class="filename">HTTP</span><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kr">HTTP</span><span class="o">/</span><span class="m">1.1</span> <span class="m">429</span> <span class="ne">Too Many Requests</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="na">Content-Type</span><span class="o">:</span> <span class="l">application/json</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="na">Retry-After</span><span class="o">:</span> <span class="l">60</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">{</span><span class="nt">&quot;detail&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Rate limit exceeded. Please slow down.&quot;</span><span class="p">}</span>
-</span></code></pre></div>
-<h2 id="websocket-connections">WebSocket connections<a class="headerlink" href="#websocket-connections" title="Anchor link to this section">&para;</a></h2>
-<p>For WebSocket upgrade requests that exceed the rate limit, the middleware sends a <code>websocket.close</code> frame with code <code>1008</code> (Policy Violation) instead of an HTTP response — emitting <code>http.response.start</code> on a WebSocket scope violates the ASGI specification.</p>
-<h2 id="failure-modes-fail-open-vs-fail-closed">Failure modes — fail-open vs fail-closed<a class="headerlink" href="#failure-modes-fail-open-vs-fail-closed" title="Anchor link to this section">&para;</a></h2>
-<p>When Redis is temporarily unavailable (network partition, restart), the rate-limit check raises an exception. The <code>rate_limit_fail_closed</code> field controls what happens next:</p>
+<h1 id="security-model">Security model<a class="headerlink" href="#security-model" title="Anchor link to this section">&para;</a></h1>
+<p>This page describes what <code>fastapi-tenancy</code> protects against, what it does
+<strong>not</strong> protect against, and the responsibilities the library leaves to the
+application. Read this before deploying — many of the strongest guarantees
+the library provides only hold when paired with correct application
+configuration.</p>
+<hr />
+<h2 id="what-this-library-protects-against">What this library protects against<a class="headerlink" href="#what-this-library-protects-against" title="Anchor link to this section">&para;</a></h2>
+<h3 id="cross-tenant-data-access-at-the-database-boundary">Cross-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> data access at the database boundary<a class="headerlink" href="#cross-tenant-data-access-at-the-database-boundary" title="Anchor link to this section">&para;</a></h3>
+<p>Each <abbr title="The database mechanism that separates one tenant's data from another's — schema, database, RLS, or hybrid.">isolation strategy</abbr> enforces a hard boundary that the application cannot
+accidentally cross while using the standard session:</p>
 <table>
 <thead>
 <tr>
-<th><code>rate_limit_fail_closed</code></th>
-<th>Redis down</th>
-<th>Effect</th>
+<th>Strategy</th>
+<th>Mechanism</th>
+<th>Guarantee</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>False</code> <em>(default)</em></td>
-<td>Logs <code>ERROR</code>, request proceeds</td>
-<td><strong>Fail-open</strong> — service stays up, rate limiting disabled until Redis recovers</td>
+<td><strong>Schema</strong> (Postgres / MSSQL)</td>
+<td><code>SET LOCAL search_path</code> per transaction via <code>Session.after_begin</code> listener</td>
+<td>Unqualified table references resolve only to the current <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>'s schema</td>
 </tr>
 <tr>
-<td><code>True</code></td>
-<td>Raises <code>RateLimitExceededError</code> → <code>HTTP 429</code></td>
-<td><strong>Fail-closed</strong> — strict enforcement, requests blocked during Redis outage</td>
+<td><strong>Database</strong></td>
+<td>One physical database per <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>; per-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> engine cache</td>
+<td>Cross-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> queries are physically impossible — they target a different host/database</td>
+</tr>
+<tr>
+<td><strong><abbr title="Row-Level Security — a PostgreSQL feature where every query is automatically filtered by tenant via server-side policies.">RLS</abbr></strong> (Postgres)</td>
+<td><code>SET LOCAL</code> of the policy <abbr title="Grand Unified Configuration — PostgreSQL session-level settings (e.g. `app.current_tenant`) set with `SET LOCAL`.">GUC</abbr> per transaction</td>
+<td>Postgres enforces <code>USING (tenant_id = current_setting(...))</code> at row evaluation</td>
+</tr>
+<tr>
+<td><strong>Hybrid</strong></td>
+<td>Premium tenants on schema, standard tenants on <abbr title="Row-Level Security — a PostgreSQL feature where every query is automatically filtered by tenant via server-side policies.">RLS</abbr> — both share one engine</td>
+<td>Combination of the two above</td>
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Strict enforcement — block all requests when Redis is down</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">config</span> <span class="o">=</span> <span class="n">TenancyConfig</span><span class="p">(</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="o">...</span><span class="p">,</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="n">enable_rate_limiting</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="n">redis_url</span><span class="o">=</span><span class="s2">&quot;redis://localhost:6379/0&quot;</span><span class="p">,</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="n">rate_limit_fail_closed</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">)</span>
-</span></code></pre></div>
-<div class="admonition warning">
-<p class="admonition-title">Redis failures are always logged at ERROR level</p>
-<p>Regardless of <code>rate_limit_fail_closed</code>, every Redis failure during a
-rate-limit check is logged at <code>ERROR</code> level so it surfaces in your
-alerting dashboard.</p>
+<p>These guarantees apply to ORM and Core SQL that goes through the session the
+library hands you. They do <strong>not</strong> apply to raw connections you obtain
+yourself, to manual <code>set_session</code>/<code>set</code> calls, or to SQL that the application
+constructs and ships through a different engine.</p>
+<h3 id="tenant-identifier-injection">Tenant identifier injection<a class="headerlink" href="#tenant-identifier-injection" title="Anchor link to this section">&para;</a></h3>
+<p>All identifiers that flow into DDL (schema/database creation, <code>search_path</code>,
+table prefixes) pass through <code>assert_safe_schema_name</code> /
+<code>assert_safe_database_name</code> before interpolation. The regex grammar
+(<code>[a-z_][a-z0-9_]{0,62}</code>) is enforced; anything outside it raises, never
+silently truncates.</p>
+<h3 id="tenant-enumeration-via-the-resolution-layer">Tenant enumeration via the resolution layer<a class="headerlink" href="#tenant-enumeration-via-the-resolution-layer" title="Anchor link to this section">&para;</a></h3>
+<p>Every resolver (header, subdomain, path, JWT) returns the same generic
+<code>"Tenant not found"</code> payload for every failure mode (missing identifier,
+malformed identifier, unknown <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>, expired JWT, audience mismatch).
+Unknown-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> errors do <strong>not</strong> produce a distinguishable HTTP 404; a
+caller cannot probe for valid <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> slugs by status-code comparison.</p>
+<h3 id="sensitive-field-leakage-in-the-persistence-layer">Sensitive field leakage in the persistence layer<a class="headerlink" href="#sensitive-field-leakage-in-the-persistence-layer" title="Anchor link to this section">&para;</a></h3>
+<p>When <code>enable_encryption=True</code>, the manager encrypts <code>database_url</code> and
+metadata keys with the <code>_enc_</code> prefix using Fernet (AES-128-CBC + HMAC-SHA256)
+before writing to the store. The proxy decrypts on every read path
+(<code>get_by_identifier</code> / <code>get_by_id</code> / <code>list</code> / <code>get_by_ids</code> / <code>search</code> /
+<code>create</code> / <code>update</code> / <code>set_status</code> / <code>update_metadata</code>) so route handlers
+and the L1 cache see plaintext. Backup files, query logs, and dumps see
+only ciphertext.</p>
+<p><strong>Limitation — <code>update_metadata</code> does not retroactively encrypt legacy
+plaintext.</strong> The store merges the patch server-side (<code>jsonb ||</code> on
+PostgreSQL); <code>update_metadata</code> encrypts only the keys present in the
+patch. A pre-existing <code>_enc_*</code> key that is <strong>already plaintext in the
+row</strong> and is not mentioned in the patch stays plaintext. This only
+applies to data written <em>before</em> encryption was enabled. Before flipping
+the flag in production, run
+<code>TenancyEncryption.find_plaintext_enc_keys(tenant.metadata)</code> over every
+row and one-shot-rewrite the offenders via
+<code>update_metadata(tenant.id, plaintext_dict)</code> — the proxy encrypts each
+key on that pass.</p>
+<p><strong>Reserved prefix — <code>enc::</code></strong> Encrypted strings are stored with the
+literal prefix <code>enc::</code>. Do not write user-supplied free-text values
+that begin with this string into <code>database_url</code> or <code>_enc_*</code> metadata
+keys — the reader treats anything starting with <code>enc::</code> as ciphertext
+and Fernet decryption will raise <code>InvalidToken</code> on the next read. The
+prefix is a structural marker, not a security boundary, and is
+deliberately short for log readability.</p>
+<h3 id="sliding-window-rate-limit-bypass">Sliding-window rate-limit bypass<a class="headerlink" href="#sliding-window-rate-limit-bypass" title="Anchor link to this section">&para;</a></h3>
+<p>The Redis Lua script reads time from <code>redis.call('TIME')</code>, not from the API
+host's wall clock. NTP skew, daylight-saving transitions, and clock-drifted
+VM instances cannot corrupt the window. Each request supplies a unique
+member identifier so concurrent requests at the same Redis tick don't
+overwrite each other. The script is atomic at the Redis level.</p>
+<h3 id="forging-tenant-identity-via-spoofed-x-forwarded-host">Forging <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> identity via spoofed <code>X-Forwarded-Host</code><a class="headerlink" href="#forging-tenant-identity-via-spoofed-x-forwarded-host" title="Anchor link to this section">&para;</a></h3>
+<div class="admonition danger">
+<p class="admonition-title">This is insecure by default — set <code>trust_x_forwarded=False</code></p>
+<p><code>SubdomainTenantResolver</code> defaults to <strong><code>trust_x_forwarded=True</code></strong>, so it
+reads <code>X-Forwarded-Host</code> in preference to <code>Host</code>. With no proxy in front —
+or a proxy that forwards the client's header unchanged — an attacker sends
+<code>X-Forwarded-Host: victim-tenant.example.com</code> and every request resolves as
+that <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>. This is full <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> impersonation from a single header.</p>
+<p>The default is retained for backward compatibility: flipping it would
+silently break every deployment behind a <code>Host</code>-rewriting proxy, which
+would start resolving the wrong <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> with no error. It is scheduled to
+flip in the next major release.</p>
+<p>Until then the exposure is made visible rather than silent — a startup
+<code>WARNING</code> is logged whenever the header is trusted. <strong>Pass
+<code>trust_x_forwarded=False</code> explicitly</strong> unless the table below says
+otherwise.</p>
 </div>
-<p>Choose <code>fail_closed=True</code> in high-security environments where bypassing rate
-limits during an outage is unacceptable. Use the default <code>fail_closed=False</code>
-when service availability must be maintained even if Redis is down.</p>
-<h2 id="per-tenant-limits">Per-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> limits<a class="headerlink" href="#per-tenant-limits" title="Anchor link to this section">&para;</a></h2>
-<p>The default limit applies to all tenants. To set per-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> limits, store the limit in <code>tenant.metadata</code>:</p>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">await</span> <span class="n">manager</span><span class="o">.</span><span class="n">store</span><span class="o">.</span><span class="n">update_metadata</span><span class="p">(</span><span class="s2">&quot;t-vip&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;rate_limit_per_minute&quot;</span><span class="p">:</span> <span class="mi">1000</span><span class="p">})</span>
+<h4 id="deployment-checklist-trust_x_forwarded">Deployment checklist — <code>trust_x_forwarded</code><a class="headerlink" href="#deployment-checklist-trust_x_forwarded" title="Anchor link to this section">&para;</a></h4>
+<p>The safe setting has a deployment trade-off worth being explicit about:
+behind a reverse proxy that <strong>rewrites the <code>Host</code> header</strong> to the proxy's
+internal backend hostname (a common Kubernetes Ingress pattern, AWS ALB
+host-based routing without <code>preserve_host</code>, etc.), <code>trust_x_forwarded=False</code>
+will silently route to the wrong <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> — or fail to match any — because the
+public hostname only survives in <code>X-Forwarded-Host</code>. That is why the flag
+exists, and why the default cannot simply be flipped without a major version.</p>
+<table>
+<thead>
+<tr>
+<th>Deployment shape</th>
+<th><code>trust_x_forwarded</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Local dev (<code>uvicorn</code> directly on the public port)</td>
+<td><code>False</code> — set explicitly</td>
+</tr>
+<tr>
+<td>Single trusted proxy that <strong>preserves <code>Host</code></strong> (nginx <code>proxy_set_header Host $host</code>)</td>
+<td><code>False</code> — set explicitly</td>
+</tr>
+<tr>
+<td>Reverse proxy that <strong>rewrites <code>Host</code></strong> (K8s Ingress default, AWS ALB host-routing without preserve, Cloudflare with origin rules)</td>
+<td><code>True</code> (current default)</td>
+</tr>
+<tr>
+<td>Direct exposure to the internet with no proxy</td>
+<td><code>False</code> — <strong>the default is unsafe here</strong></td>
+</tr>
+<tr>
+<td>Behind a CDN or WAF that you control and that sanitises XFW</td>
+<td><code>True</code> (current default)</td>
+</tr>
+</tbody>
+</table>
+<p>When opting in, the proxy chain must <strong>strip any inbound
+<code>X-Forwarded-Host</code> header</strong> from the <em>client</em>-facing edge before
+forwarding it to FastAPI. Otherwise a client can supply
+<code>X-Forwarded-Host: victim-tenant.example</code> and reach any <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> on the
+platform.</p>
+<p>Worked example (nginx in front of FastAPI, public hostname preserved):</p>
+<div class="language-nginx highlight"><span class="filename">Nginx Configuration File</span><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">location</span><span class="w"> </span><span class="s">/</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">    </span><span class="c1"># Edge: drop inbound XFW so an attacker&#39;s header doesn&#39;t leak through.</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-Host</span><span class="w"> </span><span class="s">&quot;&quot;</span><span class="p">;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">    </span><span class="c1"># Then re-set XFW from the trusted incoming Host.</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">X-Forwarded-Host</span><span class="w"> </span><span class="nv">$host</span><span class="p">;</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">    </span><span class="kn">proxy_set_header</span><span class="w"> </span><span class="s">Host</span><span class="w"> </span><span class="nv">$host</span><span class="p">;</span><span class="w">  </span><span class="c1"># also preserves Host — either approach works</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="kn">proxy_pass</span><span class="w"> </span><span class="s">http://fastapi_upstream</span><span class="p">;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>Read the per-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> value from <code>TenantConfig</code> in a custom dependency:</p>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">fastapi_tenancy.dependencies</span><span class="w"> </span><span class="kn">import</span> <span class="n">make_tenant_config_dependency</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">get_config</span> <span class="o">=</span> <span class="n">make_tenant_config_dependency</span><span class="p">(</span><span class="n">manager</span><span class="p">)</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">check_per_tenant_limit</span><span class="p">(</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">tenant</span><span class="p">:</span> <span class="n">TenantDep</span><span class="p">,</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">config</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span><span class="n">TenantConfig</span><span class="p">,</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_config</span><span class="p">)],</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="c1"># config.rate_limit_per_minute reads from tenant.metadata</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="c1"># Subclass TenancyManager and override check_rate_limit() to enforce</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="c1"># the per-tenant value instead of the global config setting.</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="o">...</span>
-</span></code></pre></div>
-<h2 id="bypassing-rate-limits-for-specific-paths">Bypassing rate limits for specific paths<a class="headerlink" href="#bypassing-rate-limits-for-specific-paths" title="Anchor link to this section">&para;</a></h2>
-<p>Add paths to <code>excluded_paths</code> in the middleware:</p>
-<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">app</span><span class="o">.</span><span class="n">add_middleware</span><span class="p">(</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>    <span class="n">TenancyMiddleware</span><span class="p">,</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>    <span class="n">manager</span><span class="o">=</span><span class="n">manager</span><span class="p">,</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">excluded_paths</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;/health&quot;</span><span class="p">,</span> <span class="s2">&quot;/metrics&quot;</span><span class="p">,</span> <span class="s2">&quot;/batch&quot;</span><span class="p">],</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="p">)</span>
-</span></code></pre></div>
-<h2 id="monitoring">Monitoring<a class="headerlink" href="#monitoring" title="Anchor link to this section">&para;</a></h2>
-<div class="language-bash highlight"><span class="filename">Bash</span><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Count requests for a tenant in the current window</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>ZCARD<span class="w"> </span>tenancy:ratelimit:t-abc123
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># See all request timestamps and unique member strings</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>ZRANGE<span class="w"> </span>tenancy:ratelimit:t-abc123<span class="w"> </span><span class="m">0</span><span class="w"> </span>-1<span class="w"> </span>WITHSCORES
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="c1"># TTL remaining on the key</span>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>TTL<span class="w"> </span>tenancy:ratelimit:t-abc123
-</span></code></pre></div>
+<p>With this configuration <code>trust_x_forwarded=False</code> works correctly because
+<code>Host</code> is preserved — prefer it whenever you can guarantee that, since it
+removes the spoofing vector entirely rather than relying on the edge to strip
+the header.</p>
+<h3 id="algorithm-confusion-attacks-on-jwt-tenant-tokens">Algorithm-confusion attacks on JWT <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> tokens<a class="headerlink" href="#algorithm-confusion-attacks-on-jwt-tenant-tokens" title="Anchor link to this section">&para;</a></h3>
+<p><code>JWTTenantResolver</code> pins <code>algorithms=[self._algorithm]</code> at decode time
+<strong>and</strong> rejects <code>algorithm="none"</code> (and case-variants, whitespace, empty
+string) at construction. Unsigned tokens cannot be configured into the
+resolver.</p>
+<hr />
+<h2 id="what-this-library-does-not-protect-against">What this library does NOT protect against<a class="headerlink" href="#what-this-library-does-not-protect-against" title="Anchor link to this section">&para;</a></h2>
+<h3 id="authentication-of-the-caller">Authentication of the caller<a class="headerlink" href="#authentication-of-the-caller" title="Anchor link to this section">&para;</a></h3>
+<p>The tenancy middleware trusts whatever the resolver returns. If the
+resolver pulls a <abbr title="An opaque internal primary key (e.g. `&quot;t-abc123&quot;`) used in databases and logs.">tenant ID</abbr> from an HTTP header, anyone who can send that
+header can claim that <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>. Pair tenancy with an authentication layer
+that runs <strong>before</strong> the tenancy middleware: validate a session cookie,
+verify a Bearer access token (JWT or opaque), or use mTLS — then assert
+that the authenticated principal is actually allowed to act for the
+resolved <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>.</p>
+<p>The <code>JWTTenantResolver</code> is a <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>-identification mechanism, not a user-
+identification mechanism. A signed JWT proves the <em>token issuer</em> believed
+the <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> claim; it does not by itself prove the <em>caller</em> is authorised
+for that <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>. Use the <code>sub</code> / <code>azp</code> / custom claims in addition.</p>
+<h3 id="authorisation-within-a-tenant">Authorisation within a <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr><a class="headerlink" href="#authorisation-within-a-tenant" title="Anchor link to this section">&para;</a></h3>
+<p>Resolving a <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> gives every authenticated user equal access to that
+<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>'s data. Per-user roles, per-resource permissions, and field-level
+access control are application concerns.</p>
+<h3 id="sql-injection-in-application-queries">SQL injection in application queries<a class="headerlink" href="#sql-injection-in-application-queries" title="Anchor link to this section">&para;</a></h3>
+<p>The library validates identifiers used in <strong>DDL</strong> and middleware-issued
+DML (e.g. <code>SET LOCAL search_path</code>). It does not inspect or rewrite the
+SQL your application sends. Use parameterised queries (<code>text(":id")</code> with
+binds, ORM models, or <code>bindparams</code>) in every route handler. The isolation
+strategies provide a backstop, not a substitute, for parameterisation.</p>
+<h3 id="data-exfiltration-via-legitimate-access">Data exfiltration via legitimate access<a class="headerlink" href="#data-exfiltration-via-legitimate-access" title="Anchor link to this section">&para;</a></h3>
+<p>If an authenticated user has read access to a <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>'s data, they can
+read it. The library does not enforce data classification, redaction,
+masking, or query auditing. <abbr title="Row-Level Security — a PostgreSQL feature where every query is automatically filtered by tenant via server-side policies.">RLS</abbr> policies authored at the database level
+are an option but are out of scope for the library itself.</p>
+<h3 id="in-flight-transport-security-tls-or-transport-layer-attacks">In-flight transport security (TLS) or transport-layer attacks<a class="headerlink" href="#in-flight-transport-security-tls-or-transport-layer-attacks" title="Anchor link to this section">&para;</a></h3>
+<p>The library assumes HTTPS. Tenant identifiers in headers, JWTs in <code>Authorization</code>,
+and cookies are sent in clear text without TLS. Terminate HTTPS at your
+load balancer or run uvicorn with <code>--ssl-certfile</code>/<code>--ssl-keyfile</code>. Use
+HSTS. Don't accept HTTP for any path that flows through tenancy
+middleware.</p>
+<h3 id="csrf-on-cookie-authenticated-requests">CSRF on cookie-authenticated requests<a class="headerlink" href="#csrf-on-cookie-authenticated-requests" title="Anchor link to this section">&para;</a></h3>
+<p>If you authenticate users with session cookies (rather than <code>Authorization</code>
+headers), enable a CSRF protection layer <strong>before</strong> the tenancy
+middleware. Without it, an attacker can trick a user's browser into
+sending a state-changing request that the tenancy middleware will happily
+route to the user's <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>.</p>
+<h3 id="side-channel-attacks">Side-channel attacks<a class="headerlink" href="#side-channel-attacks" title="Anchor link to this section">&para;</a></h3>
+<p>The library uses <code>constant_time_compare</code> for token comparisons in
+<code>utils/security</code>, but does not defend against side-channel attacks
+(timing, cache, power) on the database or on the encryption key in
+memory. Run on infrastructure that addresses these at the platform level
+(constant-time crypto in the runtime, memory-protected enclaves where
+appropriate).</p>
+<h3 id="compromised-application-secrets">Compromised application secrets<a class="headerlink" href="#compromised-application-secrets" title="Anchor link to this section">&para;</a></h3>
+<p>The <code>encryption_key</code>, JWT <code>secret</code>, Redis credentials, and database
+credentials are all loaded from environment variables or the
+<code>TenancyConfig</code>. If your secrets management (Vault, AWS Secrets Manager,
+sealed-secrets) is compromised, every layer the library protects with
+those secrets is compromised. Rotate regularly; see the <a href="#key-rotation">Key Rotation
+section</a> below.</p>
+<h3 id="denial-of-service">Denial of service<a class="headerlink" href="#denial-of-service" title="Anchor link to this section">&para;</a></h3>
+<p>The rate limiter throttles requests per <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> but does not protect
+against:</p>
+<ul>
+<li><strong>Slowloris</strong> and other connection-exhaustion attacks (handle at the load balancer / reverse proxy).</li>
+<li><strong>Compute amplification</strong> in route handlers (use timeouts and the dependency budget).</li>
+<li><strong>Cache stampede</strong> when a hot <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> is evicted from the L1 cache and many concurrent requests refetch from the store (mitigate with a longer <abbr title="Time-To-Live — the number of seconds before a cache entry is considered stale and must be refreshed.">TTL</abbr> or <code>singleflight</code>-style coalescing in the store).</li>
+</ul>
+<h3 id="tenant-data-destruction-by-privileged-operators">Tenant data destruction by privileged operators<a class="headerlink" href="#tenant-data-destruction-by-privileged-operators" title="Anchor link to this section">&para;</a></h3>
+<p><code>destroy_tenant()</code> permanently drops the schema/database. There is no
+undo. Build approval workflows and confirm-by-typing prompts in the
+admin layer; the library will not slow you down.</p>
+<hr />
+<h2 id="required-application-responsibilities">Required application responsibilities<a class="headerlink" href="#required-application-responsibilities" title="Anchor link to this section">&para;</a></h2>
+<p>A short checklist for a production deployment:</p>
+<ul class="task-list">
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Terminate HTTPS at the load balancer; redirect HTTP → HTTPS.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Add an authentication middleware <em>before</em> <code>TenancyMiddleware</code>.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Add an authorization layer <em>after</em> authentication that asserts the authenticated principal is allowed to act for the resolved <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> If using cookie auth, add CSRF protection.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Configure CORS explicitly (<code>fastapi.middleware.cors</code>) — don't allow <code>*</code> for credentialed requests.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Set <code>enable_encryption=True</code> and supply a 32+ character <code>encryption_key</code> from a secret manager.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Set <code>enable_rate_limiting=True</code> with a Redis URL.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Set <code>JWTTenantResolver(... audience="your-service-name")</code> — without <code>audience</code> the resolver warns at startup.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Run only behind a trusted reverse proxy when enabling <code>trust_x_forwarded=True</code> on the subdomain resolver or <code>trust_x_forwarded_for=True</code> on the audit dependency.</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Enable database SSL (<code>?sslmode=require</code> or <code>ssl=True</code> in the URL).</li>
+<li class="task-list-item"><label class="task-list-control"><input type="checkbox" disabled/><span class="task-list-indicator"></span></label> Pin <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr>-resolver order: header → fallback (don't trust multiple resolvers in parallel).</li>
+</ul>
+<hr />
+<h2 id="key-rotation">Key rotation<a class="headerlink" href="#key-rotation" title="Anchor link to this section">&para;</a></h2>
+<p>The current encryption setup uses a single Fernet key derived via HKDF
+from the configured <code>encryption_key</code>. Fields encrypted with the old key
+become unreadable the moment you change the key — the <code>enc::</code> prefix
+distinguishes ciphertext from plaintext, but does not distinguish <em>which
+key</em> the ciphertext was produced by.</p>
+<p>If you suspect key compromise, the safest procedure is:</p>
+<ol>
+<li><strong>Stop</strong> writes to any <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> whose record will be re-encrypted (most apps will accept a short maintenance window for this).</li>
+<li><strong>Read</strong> every <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> via the old key (<code>enable_encryption=True</code>, current <code>encryption_key</code>).</li>
+<li><strong>Switch</strong> the application to the new <code>encryption_key</code> <em>and disable encryption temporarily</em> in a single deploy, so reads return plaintext (Fernet's <code>decrypt</code> is idempotent on plaintext, but a new key would refuse old ciphertext).</li>
+<li><strong>Re-write</strong> every <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> via <code>manager.store.update(tenant)</code> — the proxy encrypts on write with the new key.</li>
+<li><strong>Re-enable</strong> encryption in a follow-up deploy.</li>
+</ol>
+<p>This is operational toil. A future release will likely add a
+<code>encryption_key_secondary</code> configuration field that allows reading with
+either of two keys while writing with the primary, eliminating the
+maintenance window.</p>
+<p>If you need the dual-key capability today, you can implement it as a thin
+wrapper around <code>TenancyEncryption</code> that tries the primary key first and
+falls back to the secondary on <code>InvalidToken</code>. The library does not yet
+provide this out of the box.</p>
+<hr />
+<h2 id="threat-actors-considered">Threat actors considered<a class="headerlink" href="#threat-actors-considered" title="Anchor link to this section">&para;</a></h2>
+<p>This document was written with three threat models in mind:</p>
+<table>
+<thead>
+<tr>
+<th>Actor</th>
+<th>Capabilities</th>
+<th>What this library mitigates</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>External web attacker</strong></td>
+<td>Can send arbitrary HTTP requests to the public endpoint</td>
+<td>Anti-enumeration, identifier injection, JWT alg-confusion, XFH spoofing, rate limiting</td>
+</tr>
+<tr>
+<td><strong>Compromised <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr></strong></td>
+<td>Has valid credentials for <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> A; tries to read <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> B's data</td>
+<td>Isolation strategies (schema/database/<abbr title="Row-Level Security — a PostgreSQL feature where every query is automatically filtered by tenant via server-side policies.">RLS</abbr>), session-scoped <abbr title="Grand Unified Configuration — PostgreSQL session-level settings (e.g. `app.current_tenant`) set with `SET LOCAL`.">GUC</abbr>/search_path, defence-in-depth tenant_id filters</td>
+</tr>
+<tr>
+<td><strong>Backup leak</strong></td>
+<td>Has read access to a database dump / log archive</td>
+<td>Field-level encryption of <code>database_url</code> and <code>_enc_*</code> metadata</td>
+</tr>
+</tbody>
+</table>
+<p>Actors <strong>not</strong> considered: a compromised database administrator, a
+compromised application host, a compromised secret-management system,
+nation-state side-channel attackers. Those threat models are outside the
+library's design scope.</p>
+<hr />
+<h2 id="reporting-a-security-issue">Reporting a security issue<a class="headerlink" href="#reporting-a-security-issue" title="Anchor link to this section">&para;</a></h2>
+<p>If you find an issue this document does not cover, <strong>please do not file a
+public GitHub issue</strong>. Email the maintainer or use GitHub's private
+security advisory feature for the repository. Coordinated disclosure with
+a 90-day default embargo is preferred.</p>
 <!-- Glossary abbreviations — auto-appended to every page via pymdownx.snippets -->
 <!-- The full glossary page is rendered at reference/glossary-page.md          -->
 
@@ -2121,9 +2481,6 @@ when service availability must be maintained even if Redis is down.</p>
 
 
 
-
-  
-  
 
 
 
@@ -2207,7 +2564,7 @@ when service availability must be maintained even if Redis is down.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../caching/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Caching">
+          <a href="../audit-logging/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Audit Logging">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2217,20 +2574,20 @@ when service availability must be maintained even if Redis is down.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Caching
+                Audit Logging
               </div>
             </div>
           </a>
         
         
           
-          <a href="../audit-logging/" class="md-footer__link md-footer__link--next" aria-label="Next: Audit Logging">
+          <a href="../testing/" class="md-footer__link md-footer__link--next" aria-label="Next: Testing">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Audit Logging
+                Testing
               </div>
             </div>
             <div class="md-footer__button md-icon">

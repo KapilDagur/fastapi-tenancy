@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/fastapi-tenancy-logo-32.svg">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -561,6 +561,8 @@
       
         
       
+        
+      
     
     
     
@@ -780,6 +782,8 @@
       
         
       
+        
+      
     
     
     
@@ -967,10 +971,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#tox" class="md-nav__link">
+  <a href="#regression-test-docstring-convention" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Tox
+        Regression-test docstring convention
       
     </span>
   </a>
@@ -1009,6 +1013,195 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+      
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_6_5" id="__nav_6_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture Decisions
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture Decisions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0001-commit-uv-lock/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0001 Commit uv.lock
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0002-devcontainer-canonical-environment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0002 Devcontainer as canonical environment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0003-testcontainers-replaces-docker-compose/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0003 Testcontainers replaces docker-compose
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../adr/0004-tenant-database-name-derives-from-identifier/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    0004 Tenant database name derives from identifier
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1114,51 +1307,112 @@
 <tbody>
 <tr>
 <td><code>make test</code></td>
-<td>Unit tests only — SQLite + in-memory, no Docker</td>
+<td>Unit tests only (<code>-m unit</code>) — no Docker</td>
 </tr>
 <tr>
 <td><code>make test-int</code></td>
-<td>Starts Docker, runs integration tests</td>
+<td>Integration tests (<code>-m integration</code>)</td>
 </tr>
 <tr>
 <td><code>make test-e2e</code></td>
-<td>Starts Docker, runs end-to-end tests</td>
+<td>End-to-end tests (<code>-m e2e</code>) — starts containers on demand</td>
 </tr>
 <tr>
 <td><code>make test-all</code></td>
-<td>All three suites</td>
+<td>Everything, teed to <code>test-results.txt</code></td>
 </tr>
 <tr>
 <td><code>make coverage</code></td>
-<td>Full suite + HTML coverage report (≥95% required)</td>
+<td>Full suite + HTML report at <code>htmlcov/index.html</code></td>
 </tr>
 </tbody>
 </table>
+<p>Service containers are started on demand by the suite via Testcontainers
+(see <a href="../adr/0003-testcontainers-replaces-docker-compose/">ADR 0003</a>); there is no compose file and nothing to start by hand.
+Docker only needs to be running.</p>
+<div class="admonition warning">
+<p class="admonition-title"><code>-m integration</code> is not what CI runs</p>
+<p>CI's integration job runs <code>-m "not e2e"</code> with the PostgreSQL, MySQL, and
+MSSQL store files ignored — no containers, a few seconds. Selecting on the
+<code>integration</code> marker alone also picks up tests that are parametrised
+<code>e2e</code> and will start PostgreSQL and MySQL containers.</p>
+</div>
 <h2 id="running-specific-tests">Running specific tests<a class="headerlink" href="#running-specific-tests" title="Anchor link to this section">&para;</a></h2>
 <div class="language-bash highlight"><span class="filename">Bash</span><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># A single file</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pytest<span class="w"> </span>tests/unit/test_manager.py
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>pytest<span class="w"> </span>tests/test_manager.py
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># A specific test</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>pytest<span class="w"> </span>tests/unit/test_manager.py::TestTenancyManager::test_register_tenant
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>pytest<span class="w"> </span>tests/test_manager.py::TestRateLimitFailClosed
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="c1"># By marker</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>pytest<span class="w"> </span>-m<span class="w"> </span>unit
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>pytest<span class="w"> </span>-m<span class="w"> </span>integration
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>pytest<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;not slow&quot;</span>
 </span></code></pre></div>
+<div class="admonition note">
+<p class="admonition-title"><code>-q</code> is already in <code>addopts</code></p>
+<p>Passing <code>-q</code> again makes it <code>-qq</code>, which suppresses the <code>N passed</code> summary
+line entirely — you get dots and nothing else. Omit it.</p>
+</div>
 <h2 id="coverage">Coverage<a class="headerlink" href="#coverage" title="Anchor link to this section">&para;</a></h2>
-<p>The project enforces ≥95% branch coverage. The coverage gate runs in CI and locally with <code>make coverage</code>.</p>
+<p>Branch coverage is collected by the integration and e2e targets and reported
+at <code>htmlcov/index.html</code>. There is no <code>fail_under</code> gate configured; treat the
+number as a signal, not a pass/fail.</p>
 <div class="language-bash highlight"><span class="filename">Bash</span><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>make<span class="w"> </span>coverage
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="c1"># Opens htmlcov/index.html in your browser</span>
 </span></code></pre></div>
-<h2 id="tox">Tox<a class="headerlink" href="#tox" title="Anchor link to this section">&para;</a></h2>
-<p>Use <code>tox</code> to test against all supported Python versions:</p>
-<div class="language-bash highlight"><span class="filename">Bash</span><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>tox
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>tox<span class="w"> </span>-e<span class="w"> </span>py311<span class="w">    </span><span class="c1"># unit tests on Python 3.11</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>tox<span class="w"> </span>-e<span class="w"> </span>lint<span class="w">     </span><span class="c1"># ruff</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>tox<span class="w"> </span>-e<span class="w"> </span><span class="nb">type</span><span class="w">     </span><span class="c1"># mypy --strict</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>tox<span class="w"> </span>-e<span class="w"> </span>coverage<span class="w"> </span><span class="c1"># full suite with coverage gate</span>
+<p>Reading it: <code>isolation/*</code> and <code>storage/{database,redis}</code> look low in the
+no-services selection because that job deliberately skips the paths needing a
+real backend. Run <code>make test-all</code> for the true figure.</p>
+<h2 id="regression-test-docstring-convention">Regression-test docstring convention<a class="headerlink" href="#regression-test-docstring-convention" title="Anchor link to this section">&para;</a></h2>
+<p>Every test class that pins behaviour against a specific incident or
+review finding starts its docstring with <code>FIX (&lt;id&gt;):</code> and includes a
+short <em>Before / After</em> section explaining the failure mode the fix
+addresses:</p>
+<div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">TestRateLimitScriptEnforcesTheLimit</span><span class="p">:</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;FIX (S3): the Lua deny branch returned the pre-state count.</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="sd">    Before the fix:</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="sd">        ``if count &gt;= limit then return count end`` combined with the</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="sd">        host-side ``count &gt; limit`` check meant the limiter never denied.</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="sd">    After the fix:</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="sd">        The branch returns ``count + 1`` so the host-side check fires.</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="sd">    &quot;&quot;&quot;</span>
 </span></code></pre></div>
+<p><code>&lt;id&gt;</code> is the issue tracker tag, code-review finding ID, or CHANGELOG
+section anchor — anything that lets a future reader find the original
+context in three clicks. Examples:</p>
+<table>
+<thead>
+<tr>
+<th>Tag</th>
+<th>Source of the ID</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FIX (S1):</code> / <code>FIX (C2):</code></td>
+<td>code-review finding (Security <a class="magiclink magiclink-github magiclink-issue" href="https://github.com/fastapi-extensions/fastapi-tenancy/issues/1" title="GitHub Issue: fastapi-extensions/fastapi-tenancy #1">#1</a>, Correctness <a class="magiclink magiclink-github magiclink-issue" href="https://github.com/fastapi-extensions/fastapi-tenancy/issues/2" title="GitHub Issue: fastapi-extensions/fastapi-tenancy #2">#2</a>)</td>
+</tr>
+<tr>
+<td><code>FIX (#142):</code></td>
+<td>GitHub issue / PR number</td>
+</tr>
+<tr>
+<td><code>FIX (CVE-2026-12345):</code></td>
+<td>upstream advisory</td>
+</tr>
+<tr>
+<td><code>FIX:</code></td>
+<td>informal, no tracking — acceptable for incidents pre-dating this convention</td>
+</tr>
+</tbody>
+</table>
+<p>The convention makes regression tests <strong>searchable</strong> — <code>grep -rn '"""FIX'
+tests/</code> shows every test class that exists to prevent a specific
+regression. CI doesn't enforce it; reviewers do.</p>
+<p>If you are touching a regression test that pre-dates this convention,
+upgrading its docstring is a welcome drive-by edit.</p>
 <!-- Glossary abbreviations — auto-appended to every page via pymdownx.snippets -->
 <!-- The full glossary page is rendered at reference/glossary-page.md          -->
 
@@ -1419,7 +1673,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.prune", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "toc.integrate", "search.suggest", "search.highlight", "search.share", "content.tabs.link", "content.code.copy", "content.code.annotate", "content.code.select", "content.tooltips", "content.action.edit", "content.action.view", "header.autohide"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "stable", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/extra.js"></script>
       

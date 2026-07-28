@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/fastapi-tenancy-logo-32.svg">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -537,6 +537,8 @@
       
         
           
+        
+      
         
       
         
@@ -1624,6 +1626,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../security-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security Model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../testing/" class="md-nav__link">
         
   
@@ -1851,6 +1881,8 @@
       
         
       
+        
+      
     
     
     
@@ -2002,8 +2034,18 @@
 <code>TenancyMiddleware</code> before any other middleware that needs <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> context.</p>
 </div>
 <h2 id="excluded-paths">Excluded paths<a class="headerlink" href="#excluded-paths" title="Anchor link to this section">&para;</a></h2>
-<p>Paths in <code>excluded_paths</code> bypass <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> resolution entirely. The check is a
-<strong>prefix match</strong> — <code>/health</code> excludes <code>/health</code>, <code>/health/live</code>, <code>/health/ready</code>, etc.</p>
+<p>Paths in <code>excluded_paths</code> bypass <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> resolution entirely — along with the
+inactive-<abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> check and rate limiting.</p>
+<p>Matching is <strong>segment-anchored</strong>: <code>/health</code> excludes <code>/health</code> itself and
+anything nested under it (<code>/health/live</code>, <code>/health/ready</code>), but <em>not</em> sibling
+names that merely share the prefix — <code>/healthz</code>, <code>/health-internal</code>, and
+<code>/healthcheck-admin</code> all remain protected. Trailing slashes on the configured
+value are ignored, so <code>"/api"</code> and <code>"/api/"</code> behave identically.</p>
+<div class="admonition warning">
+<p class="admonition-title">Excluding <code>/</code> excludes everything</p>
+<p>A bare <code>"/"</code> in <code>excluded_paths</code> bypasses tenancy for the entire
+application.</p>
+</div>
 <div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">excluded_paths</span><span class="o">=</span><span class="p">[</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="s2">&quot;/health&quot;</span><span class="p">,</span>         <span class="c1"># health probes</span>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s2">&quot;/metrics&quot;</span><span class="p">,</span>        <span class="c1"># Prometheus</span>
@@ -2054,6 +2096,13 @@
 </tbody>
 </table>
 <p>All HTTP error responses have <code>Content-Type: application/json</code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Built-in resolvers do not produce the 404</p>
+<p>They fold an unknown <abbr title="A single customer or user group whose data is isolated from all other tenants.">tenant</abbr> into <code>TenantResolutionError</code> (400) so it cannot
+be told apart from a malformed identifier. The 404 row applies to
+<code>TenantNotFoundError</code> raised elsewhere — your own store calls, or a custom
+resolver that lets it propagate.</p>
+</div>
 <h3 id="websocket-scopes">WebSocket scopes<a class="headerlink" href="#websocket-scopes" title="Anchor link to this section">&para;</a></h3>
 <p>For WebSocket connections, HTTP response events (<code>http.response.start</code>) are invalid and would corrupt the ASGI connection. The middleware sends <code>websocket.close</code> frames instead:</p>
 <table>
@@ -2400,7 +2449,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.prune", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "toc.integrate", "search.suggest", "search.highlight", "search.share", "content.tabs.link", "content.code.copy", "content.code.annotate", "content.code.select", "content.tooltips", "content.action.edit", "content.action.view", "header.autohide"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "stable", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/extra.js"></script>
       

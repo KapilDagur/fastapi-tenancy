@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/fastapi-tenancy-logo-32.svg">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -661,10 +661,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#docker-compose-for-local-development" class="md-nav__link">
+  <a href="#local-databases-for-development" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Docker Compose for local development
+        Local databases for development
       
     </span>
   </a>
@@ -765,6 +765,8 @@
       
         
           
+        
+      
         
       
         
@@ -1000,6 +1002,8 @@
       
         
           
+        
+      
         
       
         
@@ -1279,14 +1283,18 @@ shown above.</p>
 </div>
 <h2 id="verify-the-installation">Verify the installation<a class="headerlink" href="#verify-the-installation" title="Anchor link to this section">&para;</a></h2>
 <div class="language-python highlight"><span class="filename">Python</span><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">fastapi_tenancy</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fastapi_tenancy</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>  <span class="c1"># 0.4.0</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fastapi_tenancy</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>  <span class="c1"># 0.5.0</span>
 </span></code></pre></div>
-<h2 id="docker-compose-for-local-development">Docker Compose for local development<a class="headerlink" href="#docker-compose-for-local-development" title="Anchor link to this section">&para;</a></h2>
-<p>A <code>docker-compose.test.yml</code> is included in the repository for spinning up
-PostgreSQL 16, MySQL 8, and Redis 7 locally:</p>
-<div class="language-bash highlight"><span class="filename">Bash</span><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>docker<span class="w"> </span>compose<span class="w"> </span>-f<span class="w"> </span>docker-compose.test.yml<span class="w"> </span>up<span class="w"> </span>-d
+<h2 id="local-databases-for-development">Local databases for development<a class="headerlink" href="#local-databases-for-development" title="Anchor link to this section">&para;</a></h2>
+<p>The repository does not ship a Compose file.  Contributors get their service
+containers from the test suite itself, which starts them on demand via
+Testcontainers.  For running <em>your own</em> application against a local database,
+start whichever backend you need directly, for example:</p>
+<div class="language-bash highlight"><span class="filename">Bash</span><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>docker<span class="w"> </span>run<span class="w"> </span>-d<span class="w"> </span>--name<span class="w"> </span>pg<span class="w"> </span>-p<span class="w"> </span><span class="m">5432</span>:5432<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">POSTGRES_USER</span><span class="o">=</span>testing<span class="w"> </span>-e<span class="w"> </span><span class="nv">POSTGRES_PASSWORD</span><span class="o">=</span>Testing123!<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span>-e<span class="w"> </span><span class="nv">POSTGRES_DB</span><span class="o">=</span>test_db<span class="w"> </span>postgres:16-alpine
 </span></code></pre></div>
-<p>This starts:</p>
+<p>Reference versions used by the test suite:</p>
 <ul>
 <li>PostgreSQL 16 on port <strong>5432</strong></li>
 <li>MySQL 8.0 on port <strong>3306</strong></li>
@@ -1577,7 +1585,7 @@ PostgreSQL 16, MySQL 8, and Redis 7 locally:</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.instant.progress", "navigation.tracking", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.path", "navigation.prune", "navigation.indexes", "navigation.top", "navigation.footer", "toc.follow", "toc.integrate", "search.suggest", "search.highlight", "search.share", "content.tabs.link", "content.code.copy", "content.code.annotate", "content.code.select", "content.tooltips", "content.action.edit", "content.action.view", "header.autohide"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"alias": true, "default": "stable", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
         <script src="../../javascripts/extra.js"></script>
       
