@@ -252,15 +252,28 @@ class TestRLSPostgresIntegration:
             guc_val = result.scalar()
             assert guc_val == t.id
 
-    async def test_get_session_exception_wrapped(
+    async def test_handler_exceptions_propagate_unchanged(
         self,
         pg_rls_provider: RLSIsolationProvider,
         make_tenant: Callable[..., Tenant],
     ) -> None:
+        """Only database failures are isolation failures — see schema tests."""
+        t = make_tenant()
+        with pytest.raises(RuntimeError, match="handler error"):
+            async with pg_rls_provider.get_session(t):
+                raise RuntimeError("handler error")
+
+    async def test_database_errors_still_become_isolation_errors(
+        self,
+        pg_rls_provider: RLSIsolationProvider,
+        make_tenant: Callable[..., Tenant],
+    ) -> None:
+        from sqlalchemy.exc import OperationalError  # noqa: PLC0415
+
         t = make_tenant()
         with pytest.raises(IsolationError):
             async with pg_rls_provider.get_session(t):
-                raise RuntimeError("handler error")
+                raise OperationalError("SELECT 1", {}, Exception("connection lost"))
 
     async def test_initialize_with_metadata_creates_tables(
         self,
@@ -377,7 +390,9 @@ class TestRLSListenerCleanup:
         tenant = _make_tenant()
         captured_sync_conn: list[Any] = []
 
-        with pytest.raises(IsolationError):  # noqa: PT012
+        # The handler's exception propagates unchanged now; the listener
+        # cleanup this test guards must hold on that path too.
+        with pytest.raises(RuntimeError, match="handler blew up"):  # noqa: PT012
             async with provider.get_session(tenant) as session:
                 conn = await session.connection()
                 captured_sync_conn.append(conn.sync_connection)

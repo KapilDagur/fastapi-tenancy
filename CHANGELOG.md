@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] — Security & reliability fixes
 
-> Twenty-seven targeted fixes addressing rate-limit enforcement, JWT algorithm
+> Twenty-eight targeted fixes addressing rate-limit enforcement, JWT algorithm
 > confusion, tenant enumeration, startup/shutdown races, WebSocket error
 > handling, connection-pool lifecycle, per-tenant database naming, secret
 > redaction, cache correctness, and observability gaps.
@@ -460,6 +460,30 @@ instance checks resolve members with `inspect.getattr_static`, which ignores
 `__getattr__`, so dynamic proxies and bare `MagicMock` doubles would be
 rejected despite working at runtime. Presence is checked, not signature — a
 `write` with the wrong arity still raises on first call.
+
+**FIX 28 — Isolation providers reclassified the caller's exceptions
+(`isolation/{schema,database,rls}.py`) ** BEHAVIOUR CHANGE **
+
+`get_session()` wrapped its `yield` in `try/except Exception`, so an exception
+raised by the **consumer** inside the `async with` was caught and re-raised as
+`IsolationError`. For a FastAPI library that is fatal to normal error handling:
+a route holding a tenant session and raising `HTTPException(404)` had it
+converted into an isolation failure, which the middleware then reported to the
+client as **500 Internal tenancy error**. Every deliberate 4xx from a
+tenant-scoped route was unreachable.
+
+Fix: only `SQLAlchemyError` becomes `IsolationError`. Anything else is rolled
+back and re-raised unchanged — it is the caller's exception, and an isolation
+failure is not what happened.
+
+This reverses a deliberate choice: three tests asserted the old behaviour
+(`test_exception_in_handler_raises_isolation_error` and friends) and have been
+updated, with new tests pinning that genuine database errors are still wrapped.
+Applications that relied on arbitrary handler exceptions surfacing as
+`IsolationError` will now see the original exception type.
+
+Found by building `examples/helpdesk` — the first real application written
+against the library.
 
 ### Added
 

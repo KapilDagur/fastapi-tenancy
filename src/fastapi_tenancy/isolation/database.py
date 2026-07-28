@@ -50,6 +50,7 @@ from typing import TYPE_CHECKING, Any
 import weakref
 
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -410,13 +411,21 @@ class DatabaseIsolationProvider(BaseIsolationProvider):
         async with AsyncSession(engine, expire_on_commit=False) as session:
             try:
                 yield session
-            except Exception as exc:
+            except SQLAlchemyError as exc:
                 await session.rollback()
                 raise IsolationError(
                     operation="get_session",
                     tenant_id=tenant.id,
                     details={"error": str(exc)},
                 ) from exc
+            except BaseException:
+                # Raised by the *caller* inside the `async with`, not by
+                # this provider -- typically FastAPI's HTTPException from a
+                # route handler holding the session.  Roll back, but never
+                # reclassify: turning a deliberate 404 into an
+                # IsolationError surfaces to the client as a 500.
+                await session.rollback()
+                raise
 
     async def apply_filters(self, query: SelectT, tenant: Tenant) -> SelectT:
         """No filtering required — each tenant has a dedicated database.

@@ -51,6 +51,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import Column, String, column, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 
 from fastapi_tenancy.core.exceptions import ConfigurationError, IsolationError
@@ -257,13 +258,21 @@ class RLSIsolationProvider(BaseIsolationProvider):
                     yield session
                 except IsolationError:
                     raise
-                except Exception as exc:
+                except SQLAlchemyError as exc:
                     await session.rollback()
                     raise IsolationError(
                         operation="get_session",
                         tenant_id=tenant.id,
                         details={"guc": _RLS_GUC, "error": str(exc)},
                     ) from exc
+                except BaseException:
+                    # Raised by the *caller* inside the `async with`, not by
+                    # this provider -- typically FastAPI's HTTPException from a
+                    # route handler holding the session.  Roll back, but never
+                    # reclassify: turning a deliberate 404 into an
+                    # IsolationError surfaces to the client as a 500.
+                    await session.rollback()
+                    raise
         finally:
             # Always remove the begin listener so the pooled connection is
             # returned to the pool in a clean state — no stale GUC callbacks

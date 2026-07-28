@@ -402,13 +402,28 @@ class TestGetSession:
         async with database_provider.get_session(t) as session:
             assert isinstance(session, AsyncSession)
 
-    async def test_exception_in_handler_raises_isolation_error(
+    async def test_handler_exceptions_propagate_unchanged(
         self, database_provider: DatabaseIsolationProvider, make_tenant: Callable[..., Tenant]
     ) -> None:
+        """A handler's own exception is not an isolation failure.
+
+        Wrapping it made FastAPI unusable: ``HTTPException(404)`` raised by a
+        route holding a tenant session came back to the client as a 500.
+        """
         t = make_tenant(identifier="session-err-tenant")
-        with pytest.raises(IsolationError):
+        with pytest.raises(RuntimeError, match="handler blew up"):
             async with database_provider.get_session(t):
                 raise RuntimeError("handler blew up")
+
+    async def test_database_errors_still_become_isolation_errors(
+        self, database_provider: DatabaseIsolationProvider, make_tenant: Callable[..., Tenant]
+    ) -> None:
+        from sqlalchemy.exc import OperationalError  # noqa: PLC0415
+
+        t = make_tenant(identifier="session-dberr-tenant")
+        with pytest.raises(IsolationError):
+            async with database_provider.get_session(t):
+                raise OperationalError("SELECT 1", {}, Exception("connection lost"))
 
 
 @pytest.mark.unit

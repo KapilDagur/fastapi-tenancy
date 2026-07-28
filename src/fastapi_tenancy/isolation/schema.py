@@ -80,6 +80,7 @@ import logging
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
 from sqlalchemy.pool import StaticPool
 
@@ -353,13 +354,21 @@ class SchemaIsolationProvider(BaseIsolationProvider):
                     yield session
                 except IsolationError:
                     raise
-                except Exception as exc:
+                except SQLAlchemyError as exc:
                     await session.rollback()
                     raise IsolationError(
                         operation="get_session",
                         tenant_id=tenant.id,
                         details={"schema": schema, "error": str(exc)},
                     ) from exc
+                except BaseException:
+                    # Raised by the *caller* inside the `async with`, not by
+                    # this provider -- typically FastAPI's HTTPException from a
+                    # route handler holding the session.  Roll back, but never
+                    # reclassify: turning a deliberate 404 into an
+                    # IsolationError surfaces to the client as a 500.
+                    await session.rollback()
+                    raise
                 finally:
                     # Remove the listener while the session object is still
                     # alive so the event system releases its reference cleanly.
@@ -367,8 +376,11 @@ class SchemaIsolationProvider(BaseIsolationProvider):
                         event.remove(session.sync_session, "after_begin", _after_begin)
         except IsolationError:
             raise
-        except Exception as exc:
-            # Wrap any session-construction errors that escaped the inner try.
+        except SQLAlchemyError as exc:
+            # Wrap session-construction errors that escaped the inner try.
+            # Only database failures: a caller exception re-raised by the inner
+            # handler must pass straight through, or this outer block would
+            # undo that and reclassify it after all.
             raise IsolationError(
                 operation="get_session",
                 tenant_id=tenant.id,
@@ -422,13 +434,21 @@ class SchemaIsolationProvider(BaseIsolationProvider):
                 yield session
             except IsolationError:
                 raise
-            except Exception as exc:
+            except SQLAlchemyError as exc:
                 await session.rollback()
                 raise IsolationError(
                     operation="get_session",
                     tenant_id=tenant.id,
                     details={"schema": schema, "dialect": "mssql", "error": str(exc)},
                 ) from exc
+            except BaseException:
+                # Raised by the *caller* inside the `async with`, not by
+                # this provider -- typically FastAPI's HTTPException from a
+                # route handler holding the session.  Roll back, but never
+                # reclassify: turning a deliberate 404 into an
+                # IsolationError surfaces to the client as a 500.
+                await session.rollback()
+                raise
 
     @asynccontextmanager
     async def _prefix_session(self, tenant: Tenant) -> AsyncIterator[AsyncSession]:
@@ -468,13 +488,21 @@ class SchemaIsolationProvider(BaseIsolationProvider):
                 session.info["tenant_id"] = tenant.id
                 session.info["table_prefix"] = self.get_table_prefix(tenant)
                 yield session
-            except Exception as exc:
+            except SQLAlchemyError as exc:
                 await session.rollback()
                 raise IsolationError(
                     operation="get_session",
                     tenant_id=tenant.id,
                     details={"mode": "prefix", "error": str(exc)},
                 ) from exc
+            except BaseException:
+                # Raised by the *caller* inside the `async with`, not by
+                # this provider -- typically FastAPI's HTTPException from a
+                # route handler holding the session.  Roll back, but never
+                # reclassify: turning a deliberate 404 into an
+                # IsolationError surfaces to the client as a 500.
+                await session.rollback()
+                raise
 
     #################
     # Query filters #

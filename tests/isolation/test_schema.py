@@ -145,17 +145,37 @@ class TestPrefixSession:
         async with schema_provider.get_session(t) as session:
             assert session.info["table_prefix"] == expected
 
-    async def test_prefix_session_wraps_exception_as_isolation_error(
+    async def test_caller_exceptions_propagate_unchanged(
         self,
         schema_provider: SchemaIsolationProvider,
         make_tenant: Callable[..., Tenant],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """Exceptions raised inside _prefix_session body become IsolationError."""
+        """An exception raised by the *caller* must not become IsolationError.
+
+        The provider used to wrap anything raised inside the ``async with``.
+        That made FastAPI unusable: a route handler holding a tenant session
+        and raising ``HTTPException(404)`` had it reclassified as an isolation
+        failure, which the middleware then reported to the client as a 500.
+        Only genuine database errors are isolation failures.
+        """
+        t = make_tenant()
+        with pytest.raises(RuntimeError, match="simulated failure"):
+            async with schema_provider.get_session(t):
+                raise RuntimeError("simulated failure")
+
+    async def test_database_errors_still_become_isolation_errors(
+        self,
+        schema_provider: SchemaIsolationProvider,
+        make_tenant: Callable[..., Tenant],
+    ) -> None:
+        """The original intent is preserved for real database failures."""
+        from sqlalchemy.exc import OperationalError  # noqa: PLC0415
+
         t = make_tenant()
         with pytest.raises(IsolationError):
             async with schema_provider.get_session(t):
-                raise RuntimeError("simulated failure")
+                raise OperationalError("SELECT 1", {}, Exception("connection lost"))
 
 
 @pytest.mark.unit
@@ -549,7 +569,7 @@ class TestPostgresSchemaSession:
         async with pg_schema_provider.engine.begin() as conn:
             await conn.execute(sa.text(f'CREATE SCHEMA IF NOT EXISTS "{schema}"'))
         try:
-            with pytest.raises(IsolationError):
+            with pytest.raises(RuntimeError, match="failure in handler"):
                 async with pg_schema_provider.get_session(t):
                     raise RuntimeError("failure in handler")
         finally:
@@ -887,7 +907,9 @@ class TestSchemaSessionListenerLifecycle:
         tenant = _make_tenant()
         captured_sync_session: list[Any] = []
 
-        with pytest.raises(IsolationError):  # noqa: PT012
+        # The handler's own exception now propagates unchanged; the cleanup
+        # guarantee this test exists for must hold either way.
+        with pytest.raises(RuntimeError, match="handler failure"):  # noqa: PT012
             async with provider.get_session(tenant) as session:
                 captured_sync_session.append(session.sync_session)
                 raise RuntimeError("handler failure")
