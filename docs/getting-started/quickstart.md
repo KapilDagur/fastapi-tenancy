@@ -164,7 +164,7 @@ The middleware returns structured JSON errors automatically:
 | Situation | HTTP status | Response |
 |-----------|-------------|----------|
 | Missing `X-Tenant-ID` header | `400` | `{"detail": "Tenant identifier missing"}` |
-| Unknown tenant identifier | `404` | `{"detail": "Tenant not found"}` |
+| Unknown tenant identifier | `400` | `{"detail": "Tenant not found"}` — same as a malformed one, so tenants cannot be enumerated |
 | Suspended or deleted tenant | `403` | `{"detail": "Tenant is not active (status: suspended)"}` |
 | Rate limit exceeded | `429` | `{"detail": "Rate limit exceeded for tenant ..."}` |
 

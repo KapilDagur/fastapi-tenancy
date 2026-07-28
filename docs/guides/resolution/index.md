@@ -88,9 +88,21 @@ All resolvers raise typed exceptions that the middleware converts to HTTP respon
 
 | Exception | HTTP status | Cause |
 |-----------|-------------|-------|
-| `TenantResolutionError` | `400` | Request is malformed (missing header, bad JWT, wrong path) |
-| `TenantNotFoundError` | `404` | Identifier is valid but no matching tenant exists |
+| `TenantResolutionError` | `400` | Request is malformed **or the tenant is unknown** |
+| `TenantNotFoundError` | `404` | Raised by store lookups in your own code — see the note |
 | `TenantInactiveError` | `403` | Tenant exists but is suspended or deleted |
+
+!!! warning "An unknown tenant is a 400, not a 404"
+
+    Every built-in resolver folds "no such tenant" into `TenantResolutionError`
+    with the generic reason `"Tenant not found"`, so it is indistinguishable
+    from a malformed identifier. A 404 would confirm to an attacker that the
+    identifier format was valid, which turns the endpoint into a tenant
+    enumeration oracle.
+
+    The `TenantNotFoundError` → 404 mapping still applies to that exception
+    raised anywhere else — `manager.get_tenant()`, a direct store call, or a
+    custom resolver that chooses to let it propagate.
 
 ## In-depth guides
 

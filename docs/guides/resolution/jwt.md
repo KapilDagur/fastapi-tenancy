@@ -24,12 +24,35 @@ config = TenancyConfig(
     jwt_secret="your-secret-key-at-least-32-characters-long",  # required
     jwt_algorithm="HS256",         # default
     jwt_tenant_claim="tenant_id",  # default — claim name in the JWT payload
+    jwt_audience="my-api-service", # recommended — see Audience validation
 )
 ```
 
 !!! warning "Secret strength"
     `jwt_secret` must be at least **32 characters** long. Shorter secrets
     raise `ValidationError` at construction time.
+
+!!! danger "`algorithm="none"` is rejected"
+
+    PyJWT refuses an unsigned token only because `"none"` is absent from the
+    algorithm list it is handed. A resolver *configured* with `"none"` —
+    a typo, a mis-merged config, a paste from a JWT debugger — would verify no
+    signatures at all, letting any caller forge tenant identity.
+
+    The resolver therefore raises `ValueError` at construction for `"none"` in
+    any casing, and for empty values. The failure is loud and at startup.
+
+### Algorithm rotation
+
+`algorithm` also accepts a list, so two algorithms can be valid during a
+rotation window. A plain string keeps working unchanged.
+
+```python
+from fastapi_tenancy.resolution.jwt import JWTTenantResolver
+
+# Accept both while re-issuing tokens, then drop RS256.
+resolver = JWTTenantResolver(store, secret=PUBLIC_PEM, algorithm=["RS256", "ES256"])
+```
 
 ## Token format
 
@@ -68,7 +91,8 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     An attacker with a valid token for any service can impersonate any tenant
     on any other service that shares the secret.
 
-Configure an `audience` on the resolver to prevent cross-service replay attacks:
+Set `jwt_audience` in `TenancyConfig` — the manager threads it into the
+resolver — or pass `audience=` when constructing a resolver by hand:
 
 ```python
 # Via JWTTenantResolver directly (custom wiring)
@@ -140,9 +164,21 @@ With RS256 the private key never reaches the API service, so audience validation
 | Invalid signature | `400` | `"JWT token is invalid or signature verification failed"` |
 | Expired token | `400` | `"JWT token has expired"` |
 | Wrong `aud` claim | `400` | `"JWT audience claim does not match expected audience"` |
-| Missing tenant claim | `400` | `"JWT payload is missing claim 'tenant_id'"` |
-| Invalid identifier in claim | `400` | `"JWT claim 'tenant_id' contains an invalid tenant identifier"` |
-| Tenant not found in store | `404` | *(from `TenantNotFoundError`)* |
+| Missing tenant claim | `400` | `"Tenant not found"` |
+| Invalid identifier in claim | `400` | `"Tenant not found"` |
+| Tenant not found in store | `400` | `"Tenant not found"` |
+
+!!! note "The last three are identical on purpose"
+
+    Missing claim, malformed identifier, and unknown tenant all return the
+    same status and the same reason. Distinguishing them would let a caller
+    holding a forged token enumerate valid tenant identifiers by comparing
+    responses — a 404 confirms the claim format was right. This matches the
+    header resolver's long-standing behaviour.
+
+    Token-validity errors above (expiry, signature, audience) keep their
+    specific reasons: they describe the *token*, which the caller already
+    holds, not the tenant.
 
 ## Combining with FastAPI security
 

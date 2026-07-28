@@ -45,6 +45,7 @@ TENANCY_ISOLATION_STRATEGY=schema
 | `TENANCY_JWT_SECRET` | `str` | — |
 | `TENANCY_JWT_ALGORITHM` | `str` | `HS256` |
 | `TENANCY_JWT_TENANT_CLAIM` | `str` | `tenant_id` |
+| `TENANCY_JWT_AUDIENCE` | `str` | — |
 
 ## Isolation parameters
 
@@ -68,6 +69,7 @@ TENANCY_ISOLATION_STRATEGY=schema
 | `TENANCY_REDIS_URL` | `str` | — |
 | `TENANCY_CACHE_ENABLED` | `bool` | `false` |
 | `TENANCY_CACHE_TTL` | `int` | `3600` |
+| `TENANCY_L1_CACHE_ENABLED` | `bool` | `false` |
 | `TENANCY_L1_CACHE_MAX_SIZE` | `int` | `1000` |
 | `TENANCY_L1_CACHE_TTL_SECONDS` | `int` | `60` |
 

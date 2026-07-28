@@ -30,7 +30,7 @@ Authorization: Bearer <token>
 2. The header value `"acme-corp"` is extracted and stripped of whitespace
 3. It is validated against tenant slug rules (lowercase letters, digits, hyphens, 3–63 chars)
 4. `store.get_by_identifier("acme-corp")` looks up the tenant
-5. If found and active, the request proceeds; otherwise a 400/404/403 is returned
+5. If found and active, the request proceeds; otherwise 400 (missing, malformed, or unknown identifier — all indistinguishable) or 403 (inactive tenant)
 
 ## Custom header name
 

@@ -75,6 +75,13 @@ The middleware maps typed exceptions to scope-appropriate responses:
 
 All HTTP error responses have `Content-Type: application/json`.
 
+!!! note "Built-in resolvers do not produce the 404"
+
+    They fold an unknown tenant into `TenantResolutionError` (400) so it cannot
+    be told apart from a malformed identifier. The 404 row applies to
+    `TenantNotFoundError` raised elsewhere — your own store calls, or a custom
+    resolver that lets it propagate.
+
 ### WebSocket scopes
 
 For WebSocket connections, HTTP response events (`http.response.start`) are invalid and would corrupt the ASGI connection. The middleware sends `websocket.close` frames instead:

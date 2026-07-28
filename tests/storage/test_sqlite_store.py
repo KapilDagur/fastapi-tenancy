@@ -208,7 +208,17 @@ class TestSearchDialect:
         finally:
             await store.close()
 
-    @pytest.mark.e2e
+
+@pytest.mark.e2e
+class TestSearchDialectPostgres:
+    """The PostgreSQL half of the search-dialect contract.
+
+    Lives in its own class rather than beside the SQLite cases because
+    pytest marks accumulate and cannot be removed: a method-level ``e2e``
+    inside an ``integration``-marked class carries *both* marks, so
+    ``-m integration`` selects it and starts a PostgreSQL container for
+    what is meant to be the fast, no-services suite."""
+
     async def test_search_postgres_ilike(self, make_tenant: Callable[..., Tenant]) -> None:
         pg_url = _services.postgres_url()
         store = SQLAlchemyTenantStore(pg_url, pool_size=2, max_overflow=2)

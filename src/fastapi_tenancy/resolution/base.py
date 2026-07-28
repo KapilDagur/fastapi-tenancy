@@ -52,6 +52,24 @@ class BaseTenantResolver(ABC):
     async def resolve(self, request: Request) -> Tenant:
         """Resolve the current tenant from *request*.
 
+        .. important:: Anti-enumeration contract
+
+            Every failure mode — missing identifier, malformed identifier, and
+            **unknown tenant** — should raise ``TenantResolutionError`` with the
+            same generic reason.  All four built-in resolvers do this: they
+            catch ``TenantNotFoundError`` from the store and re-raise it as a
+            resolution error, so the middleware answers 400 rather than 404.
+
+            Letting ``TenantNotFoundError`` propagate produces a 404, which
+            tells an attacker the identifier *format* was valid and turns the
+            endpoint into a tenant-enumeration oracle.  Only do that if your
+            tenant identifiers are already public and enumeration is
+            acceptable for your deployment.
+
+            Errors describing the *credential* rather than the tenant (an
+            expired or badly signed token) may keep specific reasons — the
+            caller already holds the credential.
+
         Args:
             request: Incoming FastAPI / Starlette request.
 
@@ -59,9 +77,8 @@ class BaseTenantResolver(ABC):
             The resolved :class:`~fastapi_tenancy.core.types.Tenant`.
 
         Raises:
-            TenantResolutionError: When the request does not carry enough
-                information to identify a tenant.
-            TenantNotFoundError: When the identifier matches no known tenant.
+            TenantResolutionError: On every failure mode, including an unknown
+                tenant — see the anti-enumeration note above.
         """
 
 

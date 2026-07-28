@@ -97,7 +97,9 @@ async def test_unknown_tenant(client):
         "/orders",
         headers={"X-Tenant-ID": "does-not-exist"},
     )
-    assert response.status_code == 404
+    # 400, not 404: an unknown tenant is deliberately indistinguishable
+    # from a malformed one so identifiers cannot be enumerated.
+    assert response.status_code == 400
     assert response.json()["detail"] == "Tenant not found"
 
 async def test_missing_tenant_header(client):
