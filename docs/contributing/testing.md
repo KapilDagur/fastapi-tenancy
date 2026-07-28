@@ -9,20 +9,31 @@ description: How to run the full test suite for fastapi-tenancy.
 
 | Command | Description |
 |---------|-------------|
-| `make test` | Unit tests only — SQLite + in-memory, no Docker |
-| `make test-int` | Starts Docker, runs integration tests |
-| `make test-e2e` | Starts Docker, runs end-to-end tests |
-| `make test-all` | All three suites |
-| `make coverage` | Full suite + HTML coverage report (≥95% required) |
+| `make test` | Unit tests only (`-m unit`) — no Docker |
+| `make test-int` | Integration tests (`-m integration`) |
+| `make test-e2e` | End-to-end tests (`-m e2e`) — starts containers on demand |
+| `make test-all` | Everything, teed to `test-results.txt` |
+| `make coverage` | Full suite + HTML report at `htmlcov/index.html` |
+
+Service containers are started on demand by the suite via Testcontainers
+(see [ADR 0003](adr/0003-testcontainers-replaces-docker-compose.md)); there is no compose file and nothing to start by hand.
+Docker only needs to be running.
+
+!!! warning "`-m integration` is not what CI runs"
+
+    CI's integration job runs `-m "not e2e"` with the PostgreSQL, MySQL, and
+    MSSQL store files ignored — no containers, a few seconds. Selecting on the
+    `integration` marker alone also picks up tests that are parametrised
+    `e2e` and will start PostgreSQL and MySQL containers.
 
 ## Running specific tests
 
 ```bash
 # A single file
-pytest tests/unit/test_manager.py
+pytest tests/test_manager.py
 
 # A specific test
-pytest tests/unit/test_manager.py::TestTenancyManager::test_register_tenant
+pytest tests/test_manager.py::TestRateLimitFailClosed
 
 # By marker
 pytest -m unit
@@ -30,23 +41,59 @@ pytest -m integration
 pytest -m "not slow"
 ```
 
+!!! note "`-q` is already in `addopts`"
+
+    Passing `-q` again makes it `-qq`, which suppresses the `N passed` summary
+    line entirely — you get dots and nothing else. Omit it.
+
 ## Coverage
 
-The project enforces ≥95% branch coverage. The coverage gate runs in CI and locally with `make coverage`.
+Branch coverage is collected by the integration and e2e targets and reported
+at `htmlcov/index.html`. There is no `fail_under` gate configured; treat the
+number as a signal, not a pass/fail.
 
 ```bash
 make coverage
-# Opens htmlcov/index.html in your browser
 ```
 
-## Tox
+Reading it: `isolation/*` and `storage/{database,redis}` look low in the
+no-services selection because that job deliberately skips the paths needing a
+real backend. Run `make test-all` for the true figure.
 
-Use `tox` to test against all supported Python versions:
+## Regression-test docstring convention
 
-```bash
-pip install tox
-tox -e py311    # unit tests on Python 3.11
-tox -e lint     # ruff
-tox -e type     # mypy --strict
-tox -e coverage # full suite with coverage gate
+Every test class that pins behaviour against a specific incident or
+review finding starts its docstring with `FIX (<id>):` and includes a
+short *Before / After* section explaining the failure mode the fix
+addresses:
+
+```python
+class TestRateLimitScriptEnforcesTheLimit:
+    """FIX (S3): the Lua deny branch returned the pre-state count.
+
+    Before the fix:
+        ``if count >= limit then return count end`` combined with the
+        host-side ``count > limit`` check meant the limiter never denied.
+
+    After the fix:
+        The branch returns ``count + 1`` so the host-side check fires.
+    """
 ```
+
+`<id>` is the issue tracker tag, code-review finding ID, or CHANGELOG
+section anchor — anything that lets a future reader find the original
+context in three clicks. Examples:
+
+| Tag | Source of the ID |
+| --- | --- |
+| `FIX (S1):` / `FIX (C2):` | code-review finding (Security #1, Correctness #2) |
+| `FIX (#142):` | GitHub issue / PR number |
+| `FIX (CVE-2026-12345):` | upstream advisory |
+| `FIX:` | informal, no tracking — acceptable for incidents pre-dating this convention |
+
+The convention makes regression tests **searchable** — `grep -rn '"""FIX'
+tests/` shows every test class that exists to prevent a specific
+regression. CI doesn't enforce it; reviewers do.
+
+If you are touching a regression test that pre-dates this convention,
+upgrading its docstring is a welcome drive-by edit.

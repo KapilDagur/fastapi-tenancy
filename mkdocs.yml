@@ -197,6 +197,7 @@ nav:
     - Caching: guides/caching.md
     - Rate Limiting: guides/rate-limiting.md
     - Audit Logging: guides/audit-logging.md
+    - Security Model: guides/security-model.md
     - Testing: guides/testing.md
     - Deployment: guides/deployment.md
   - API Reference:
