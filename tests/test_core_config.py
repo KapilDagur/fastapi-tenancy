@@ -10,7 +10,8 @@ from pydantic import ValidationError
 import pytest
 
 from fastapi_tenancy.core.config import TenancyConfig
-from fastapi_tenancy.core.types import IsolationStrategy, ResolutionStrategy
+from fastapi_tenancy.core.types import IsolationStrategy, ResolutionStrategy, Tenant
+from fastapi_tenancy.isolation.database import DatabaseIsolationProvider
 
 SQLITE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -255,14 +256,49 @@ class TestHelperMethods:
             isolation_strategy=IsolationStrategy.DATABASE,
             database_url_template="postgresql+asyncpg://user:pass@host/{database_name}",
         )
-        url = c.get_database_url_for_tenant("tenant-abc123")
-        assert "tenant_abc123" in url
+        # The database name comes from the *identifier*, never the opaque id.
+        url = c.get_database_url_for_tenant("tenant-aB3xYz9", "acme-corp")
+        assert url.endswith("/tenant_acme_corp_db")
 
     def test_get_database_url_for_tenant_no_template(self) -> None:
         c = make_config()
         # Without template, falls back to the base database_url
-        url = c.get_database_url_for_tenant("t1")
+        url = c.get_database_url_for_tenant("t1", "acme-corp")
         assert url == SQLITE_URL
+
+    def test_get_database_name_matches_provider_derivation(self) -> None:
+        """F1: config and DatabaseIsolationProvider must agree on the name.
+
+        The provider CREATEs the database and the migration manager connects to
+        it; if these two derivations diverge, migrations silently target a
+        database that was never provisioned.
+        """
+        c = TenancyConfig(
+            database_url=SQLITE_URL,
+            isolation_strategy=IsolationStrategy.DATABASE,
+            database_url_template="postgresql+asyncpg://user:pass@host/{database_name}",
+        )
+        tenant = Tenant(id="tenant-aB3xYz9mQp", identifier="acme-corp", name="Acme")
+        provider = DatabaseIsolationProvider(c)
+        assert provider._database_name(tenant) == c.get_database_name(tenant.identifier)
+        assert c.get_database_url_for_tenant(tenant.id, tenant.identifier).endswith(
+            provider._database_name(tenant)
+        )
+
+    def test_get_database_name_rejects_invalid_identifier(self) -> None:
+        c = make_config()
+        with pytest.raises(ValueError, match="Invalid tenant identifier"):
+            c.get_database_name("-invalid-")
+
+    def test_get_database_name_no_case_collision(self) -> None:
+        """Distinct slugs must never collapse onto one database name.
+
+        The old id-based derivation lowercased token_urlsafe values, so
+        ``tenant-aB`` and ``tenant-Ab`` mapped to the same database.
+        """
+        c = make_config()
+        assert c.get_database_name("acme-corp") != c.get_database_name("acme-corpx")
+        assert c.get_database_name("acme-corp") == "tenant_acme_corp_db"
 
     def test_is_premium_tenant(self) -> None:
         c = TenancyConfig(

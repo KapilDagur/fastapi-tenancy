@@ -250,11 +250,14 @@ class DatabaseIsolationProvider(BaseIsolationProvider):
         Args:
             tenant: Target tenant.
 
+        Delegates to :meth:`~fastapi_tenancy.core.config.TenancyConfig.get_database_name`
+        so that this provider, the URL builder, and ``TenantMigrationManager``
+        can never derive different names for the same tenant.
+
         Returns:
             A safe, deterministic database name string.
         """
-        slug = sanitize_identifier(tenant.identifier)
-        return f"tenant_{slug}_db"
+        return self.config.get_database_name(tenant.identifier)
 
     def _tenant_url(self, tenant: Tenant) -> str:
         """Build the connection URL for *tenant*'s dedicated database.
@@ -276,10 +279,9 @@ class DatabaseIsolationProvider(BaseIsolationProvider):
             return f"{parts[0]}/{slug}.db" if len(parts) == 2 else base
 
         if self.config.database_url_template:
-            return self.config.database_url_template.format(
-                tenant_id=tenant.id,
-                database_name=db_name,
-            )
+            # Route through the config helper so the template is rendered
+            # identically here and in TenantMigrationManager.
+            return self.config.get_database_url_for_tenant(tenant.id, tenant.identifier)
 
         # Replace the database name at the end of the URL safely.
         return re.sub(

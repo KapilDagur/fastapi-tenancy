@@ -239,7 +239,7 @@ class BaseIsolationProvider(ABC):
         """
         if tenant.database_url:
             return tenant.database_url
-        return self.config.get_database_url_for_tenant(tenant.id)
+        return self.config.get_database_url_for_tenant(tenant.id, tenant.identifier)
 
 
 __all__ = ["BaseIsolationProvider"]

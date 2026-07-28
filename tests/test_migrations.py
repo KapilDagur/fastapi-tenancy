@@ -8,11 +8,14 @@ import logging
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlparse
 
 import pytest
 
+from fastapi_tenancy.core.config import TenancyConfig
 from fastapi_tenancy.core.exceptions import MigrationError
 from fastapi_tenancy.core.types import IsolationStrategy, Tenant, TenantStatus
+from fastapi_tenancy.isolation.database import DatabaseIsolationProvider
 from fastapi_tenancy.migrations.manager import TenantMigrationManager
 from fastapi_tenancy.storage.memory import InMemoryTenantStore
 
@@ -65,8 +68,10 @@ def _make_config(
 
     cfg.get_isolation_strategy_for_tenant.side_effect = _get_strategy
     cfg.get_schema_name.side_effect = lambda identifier: f"tenant_{identifier.replace('-', '_')}"
-    cfg.get_database_url_for_tenant.side_effect = lambda tenant_id: (
-        f"postgresql+asyncpg://user:pass@localhost/tenant_{tenant_id}"
+    # Mirrors the real signature: the database name is derived from the
+    # *identifier*, not the opaque id (finding F1).
+    cfg.get_database_url_for_tenant.side_effect = lambda tenant_id, tenant_identifier: (
+        f"postgresql+asyncpg://user:pass@localhost/tenant_{tenant_identifier.replace('-', '_')}_db"
     )
     return cfg
 
@@ -191,6 +196,88 @@ class TestBuildAlembicArgs:
         t_no_url = _make_tenant(database_url=None)
         args = mgr._build_alembic_args(t_no_url)
         assert "url" in args
+
+
+class TestDatabaseNameAgreement:
+    """F1: the migrator must target the database the provider actually creates.
+
+    These use a **real** ``TenancyConfig`` rather than the ``MagicMock`` above.
+    That is the whole point of the finding: two real derivations disagreed
+    (``tenant.identifier`` in the provider, ``tenant.id`` in the config helper),
+    and a mocked config cannot catch that — it only pins the call signature.
+    """
+
+    @staticmethod
+    def _real_config() -> TenancyConfig:
+        return TenancyConfig(
+            database_url="postgresql+asyncpg://user:pass@localhost/main",
+            isolation_strategy=IsolationStrategy.DATABASE,
+            database_url_template="postgresql+asyncpg://user:pass@localhost/{database_name}",
+        )
+
+    @staticmethod
+    def _db_name_from_url(url: str) -> str:
+        return urlparse(url).path.lstrip("/")
+
+    def test_migrator_targets_the_database_the_provider_creates(self) -> None:
+        """The regression test named in the finding's fix direction."""
+        # An opaque, mixed-case token_urlsafe id — the shape register_tenant
+        # generates, and the shape the old id-based derivation mangled.
+        tenant = _make_tenant(id="tenant-Ab3xyz9mqp2s", identifier="acme-corp")
+        cfg = self._real_config()
+
+        provider = DatabaseIsolationProvider(cfg, master_engine=MagicMock())
+        created = provider._database_name(tenant)
+
+        mgr = _make_manager(cfg=cfg)
+        migrated = self._db_name_from_url(mgr._build_alembic_args(tenant)["url"])
+
+        assert created == "tenant_acme_corp_db"
+        assert migrated == created
+
+    def test_provider_connection_url_matches_the_migrator_url(self) -> None:
+        tenant = _make_tenant(id="tenant-Ab3xyz9mqp2s", identifier="acme-corp")
+        cfg = self._real_config()
+        provider = DatabaseIsolationProvider(cfg, master_engine=MagicMock())
+        mgr = _make_manager(cfg=cfg)
+        assert provider._tenant_url(tenant) == mgr._build_alembic_args(tenant)["url"]
+
+    def test_base_get_database_url_helper_agrees(self) -> None:
+        """``BaseIsolationProvider.get_database_url`` was the latent trap.
+
+        It had no callers in ``src/`` and used the old id-based derivation, so
+        the first person to reach for it would have silently connected to a
+        different database.
+        """
+        tenant = _make_tenant(id="tenant-Ab3xyz9mqp2s", identifier="acme-corp")
+        cfg = self._real_config()
+        provider = DatabaseIsolationProvider(cfg, master_engine=MagicMock())
+        assert self._db_name_from_url(provider.get_database_url(tenant)) == "tenant_acme_corp_db"
+
+    def test_tenant_database_url_override_still_wins(self) -> None:
+        """An explicit per-tenant URL must bypass derivation entirely."""
+        custom = "postgresql+asyncpg://user:pass@other-host/legacy_db"
+        tenant = _make_tenant(identifier="acme-corp", database_url=custom)
+        cfg = self._real_config()
+        provider = DatabaseIsolationProvider(cfg, master_engine=MagicMock())
+        mgr = _make_manager(cfg=cfg)
+        assert provider.get_database_url(tenant) == custom
+        assert mgr._build_alembic_args(tenant)["url"] == custom
+
+    def test_distinct_tenants_never_share_a_database_name(self) -> None:
+        """The identifier grammar makes hyphen→underscore injective.
+
+        Deriving from ``id`` did not have this property: ``token_urlsafe``
+        values are case-sensitive and contain both ``-`` and ``_``, so
+        lowercasing collapsed distinct tenants onto one database.
+        """
+        cfg = self._real_config()
+        provider = DatabaseIsolationProvider(cfg, master_engine=MagicMock())
+        names = {
+            provider._database_name(_make_tenant(id=f"tenant-{i}", identifier=slug))
+            for i, slug in enumerate(["acme-corp", "acme-co-rp", "acmecorp", "acme-corp-2"])
+        }
+        assert len(names) == 4
 
 
 class TestRunMigrationSync:

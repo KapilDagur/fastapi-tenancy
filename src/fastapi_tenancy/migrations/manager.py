@@ -393,7 +393,12 @@ class TenantMigrationManager:
         args: dict[str, str] = {}
 
         if strategy == IsolationStrategy.DATABASE:
-            url = tenant.database_url or self._config.get_database_url_for_tenant(tenant.id)
+            # The database name must come from the same helper the isolation
+            # provider used to CREATE the database, or Alembic migrates a
+            # different (usually non-existent) database.  See ADR / finding F1.
+            url = tenant.database_url or self._config.get_database_url_for_tenant(
+                tenant.id, tenant.identifier
+            )
             args["url"] = url
 
         elif strategy == IsolationStrategy.SCHEMA:

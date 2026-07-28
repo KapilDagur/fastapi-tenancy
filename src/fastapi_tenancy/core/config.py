@@ -606,20 +606,74 @@ class TenancyConfig(BaseSettings):
         sanitised = tenant_identifier.replace("-", "_").replace(".", "_")
         return f"{self.schema_prefix}{sanitised}"
 
-    def get_database_url_for_tenant(self, tenant_id: str) -> str:
-        """Build the database URL for *tenant_id* in DATABASE isolation mode.
+    def get_database_name(self, tenant_identifier: str) -> str:
+        """Compute the per-tenant database name for *tenant_identifier*.
+
+        This is the **single source of truth** for per-tenant database naming.
+        ``DatabaseIsolationProvider`` (which creates the database),
+        :meth:`get_database_url_for_tenant` (which builds connection URLs), and
+        ``TenantMigrationManager`` (which migrates it) all resolve the name
+        through this method so they can never disagree.
+
+        The name is derived from the tenant's **identifier**, not its ``id``.
+        The identifier is a validated slug — lowercase letters, digits, and
+        hyphens only — so the hyphen-to-underscore mapping is injective and two
+        distinct tenants can never collide.  Deriving from ``id`` would not be
+        safe: IDs are ``token_urlsafe`` values containing mixed case plus ``-``
+        and ``_``, so lowercasing them can map two distinct tenants onto the
+        same database.
+
+        Args:
+            tenant_identifier: The tenant's human-readable slug.
+
+        Returns:
+            Database name string (e.g. ``"tenant_acme_corp_db"``).
+
+        Raises:
+            ValueError: When *tenant_identifier* fails validation.
+
+        Example::
+
+            config.get_database_name("acme-corp")  # → "tenant_acme_corp_db"
+        """
+        from fastapi_tenancy.utils.validation import (  # noqa: PLC0415
+            sanitize_identifier,
+            validate_tenant_identifier,
+        )
+
+        if not validate_tenant_identifier(tenant_identifier):
+            msg = f"Invalid tenant identifier for database name: {tenant_identifier!r}"
+            raise ValueError(msg)
+        return f"tenant_{sanitize_identifier(tenant_identifier)}_db"
+
+    def get_database_url_for_tenant(self, tenant_id: str, tenant_identifier: str) -> str:
+        """Build the database URL for a tenant in DATABASE isolation mode.
+
+        Both arguments are required because the two template placeholders are
+        fed from different fields: ``{tenant_id}`` from the opaque ID and
+        ``{database_name}`` from :meth:`get_database_name`, which derives from
+        the identifier.
+
+        .. versionchanged:: 0.5
+            *tenant_identifier* is now required.  Previously the database name
+            was derived from ``tenant_id``, which did not match the name
+            ``DatabaseIsolationProvider`` actually creates — migrations were
+            silently pointed at a different database than the one provisioned.
 
         Args:
             tenant_id: The tenant's opaque unique ID.
+            tenant_identifier: The tenant's human-readable slug.
 
         Returns:
             A fully-qualified async database URL string.
+
+        Raises:
+            ValueError: When *tenant_identifier* fails validation.
         """
         if self.database_url_template:
-            db_name = tenant_id.replace("-", "_").replace(".", "_").lower()
             return self.database_url_template.format(
                 tenant_id=tenant_id,
-                database_name=f"tenant_{db_name}_db",
+                database_name=self.get_database_name(tenant_identifier),
             )
         return str(self.database_url)
 
